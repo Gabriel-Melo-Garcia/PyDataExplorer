@@ -23,15 +23,15 @@ class GraphView(QMainWindow):
 
         # ComboBox para selecionar o tipo de gráfico
         self.cb_graph_type = QComboBox()
-        self.cb_graph_type.addItems(["Histograma", "Dispersão", "Linha", "Barras"])
+        self.cb_graph_type.addItems(["histogram", "Dispersão", "Linha", "Barras"])
         self.cb_graph_type.currentIndexChanged.connect(self.buttons_visibility)
 
         self.cb_column_x = QComboBox()
         self.cb_column_y = QComboBox()
-        self.update_cb_column()
 
         self.cb_bins = QComboBox()
         self.cb_bins.addItems(['5', '10', '15', '20'])
+        self.update_cb_column()
 
         self.txt_input_title = QLineEdit()
         self.txt_input_title.setPlaceholderText("Title")
@@ -67,14 +67,15 @@ class GraphView(QMainWindow):
         self.cb_column_y.clear()
 
         if self.data is not None and not self.data.empty:
-            self.cb_column_x.addItems(self.data.columns)
+            self.cb_column_x.addItems(self.data.columns) 
             self.cb_column_y.addItems(self.data.columns)
+            self.buttons_visibility()
         else:
             self.cb_column_x.addItem("No data loaded")
             self.cb_column_y.addItem("No data loaded")
             
     def buttons_visibility(self):
-        if self.cb_graph_type.currentText() == "Histograma":
+        if self.cb_graph_type.currentText() == "histogram":
             self.cb_column_y.hide()
             self.cb_bins.show()
         else:
@@ -90,7 +91,7 @@ class GraphView(QMainWindow):
             self.ax.clear()
 
             try:
-                if graph_type == "Histograma":
+                if graph_type == "histogram":
                     self.plot_histogram(col_x)
                 elif graph_type == "Dispersão":
                     self.plot_scatter(col_x, col_y)
