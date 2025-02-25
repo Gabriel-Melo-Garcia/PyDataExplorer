@@ -13,7 +13,7 @@ from graph_view import GraphView
 
 class Main_window(QMainWindow):
     def __init__(self):
-        super().__init__()
+        super().__init__() 
         self.data = None
         self.filtered_data = None
         self.graph_window = None  
@@ -303,16 +303,29 @@ class Main_window(QMainWindow):
             self.lb_4.setText("No dataframe loaded")
              
     def initDrawer(self):
-
         self.drawer = QDockWidget("Details", self)
         self.drawer.setAllowedAreas(Qt.DockWidgetArea.RightDockWidgetArea)
-        
+
+        container = QWidget()
+        layout = QVBoxLayout()
+
         self.drawer_text = QTextEdit()
         self.drawer_text.setReadOnly(True)
-        self.drawer.setWidget(self.drawer_text)
-        
+
+        self.btn_duplicate_show = QPushButton("Show Duplicates")
+        self.btn_duplicate_show.clicked.connect(self.show_duplicate_rows)
+        self.btn_duplicate_drop = QPushButton("Drop Duplicates")
+        self.btn_duplicate_drop.clicked.connect(self.drop_duplicate_rows)
+
+        layout.addWidget(self.drawer_text)
+        layout.addWidget(self.btn_duplicate_show)
+        layout.addWidget(self.btn_duplicate_drop)
+
+        container.setLayout(layout)
+        self.drawer.setWidget(container)
+
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.drawer)
-        self.drawer.hide()  # Oculta o drawer inicialmente
+        self.drawer.hide()  
 
     def toggleDrawer(self):
 
@@ -351,8 +364,17 @@ class Main_window(QMainWindow):
             info_text.append(str(self.data.duplicated().sum()))
 
             self.drawer_text.setPlainText("\n".join(info_text))
+            if self.data.duplicated().sum() > 0:
+                self.btn_duplicate_show.setVisible(True)
+                self.btn_duplicate_drop.setVisible(True)
+            else:
+                self.btn_duplicate_show.setVisible(False)
+                self.btn_duplicate_drop.setVisible(False)
+            
         else:
             self.drawer_text.setPlainText("No Dataframe Loaded")
+            self.btn_duplicate_show.setVisible(False)
+            self.btn_duplicate_drop.setVisible(False)
             
     def open_graph_window(self):
        
@@ -361,6 +383,19 @@ class Main_window(QMainWindow):
             self.graph_window.show()
         else:
             self.lb_4.setText("No data loaded")
+            
+    def show_duplicate_rows(self):
+        if self.data is not None:
+            duplicated = self.data[self.data.duplicated(keep=False)].sort_values(by=self.data.columns.to_list()[0])
+            self.filtered_data =  duplicated
+            self.update_filtered_table()
+            self.lb_4.setText(f'The data have {duplicated.shape[0]} rows')
+            
+    def drop_duplicate_rows(self):
+        if self.data is not None:
+            self.data = self.data.drop_duplicates()
+            self.lb_4.setText(f'Duplicated rows deleted')
+            self.update_defaut_table()  
     
 if __name__ == '__main__':
     
