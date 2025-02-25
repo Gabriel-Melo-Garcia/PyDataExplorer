@@ -9,7 +9,7 @@ class FilterDialog(QDialog):
         self.data = data
         self.filtered_data = data.copy()
         
-        self.setWindowTitle("Advanced Filter")
+        self.setWindowTitle("Filter")
         self.layout = QVBoxLayout()
 
         # Dropdowns for selecting columns and actions

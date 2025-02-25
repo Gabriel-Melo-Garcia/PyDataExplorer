@@ -13,7 +13,7 @@ from graph_view import GraphView
 
 class Main_window(QMainWindow):
     def __init__(self):
-        super().__init__()
+        super().__init__() 
         self.data = None
         self.filtered_data = None
         self.graph_window = None  
@@ -43,7 +43,7 @@ class Main_window(QMainWindow):
         self.btn_clean_filter = QPushButton("clean filter")
         self.btn_clean_filter.clicked.connect(self.update_defaut_table)
         #btn show details
-        self.btn_show_details = QPushButton("Mostrar Detalhes")
+        self.btn_show_details = QPushButton("Show Details")
         self.btn_show_details.clicked.connect(self.toggleDrawer)
         #btn open graph
         self.btn_open_graph = QPushButton("Graph")
@@ -51,11 +51,11 @@ class Main_window(QMainWindow):
         
         self.table_widget = QTableWidget()
     
-        self.lb_4 = QLabel("label qualquer")
+        self.lb_4 = QLabel(" ")
         
         left_btn_list_layout.addWidget(self.btn_add_dataframe)
-        left_btn_list_layout.addWidget(self.btn_filter_data)
         left_btn_list_layout.addWidget(self.btn_show_details)
+        left_btn_list_layout.addWidget(self.btn_filter_data)
         left_btn_list_layout.addWidget(self.btn_clean_filter)
         left_btn_list_layout.addWidget(self.btn_open_graph)
         
@@ -69,6 +69,7 @@ class Main_window(QMainWindow):
         self.setCentralWidget(central_widget)
         # self.setGeometry(200,200,600,400)
         self.setMinimumSize(850,550)
+        self.setWindowTitle("PyDataExplorer")
         self.show()
         
     def add_data(self):
@@ -146,48 +147,53 @@ class Main_window(QMainWindow):
             dialog.setMinimumSize(300, 120)
             layout = QFormLayout()
 
-            type_combo = QComboBox()
-            type_combo.addItems(["str", "int", "float", "bool"])
-            type_combo.setCurrentText(current_type)
+            cb_type = QComboBox()
+            cb_type.addItems(["str", "int", "float", "bool"])
+            cb_type.setCurrentText(current_type)
 
-            bool_combo = QComboBox()
-            bool_combo.setVisible(False)
+            lb_bool = QLabel("True value:")
+            lb_bool.setVisible(False)
+            cb_bool = QComboBox()
+            cb_bool.setVisible(False)
 
-            error_label = QLabel("")
-            error_label.setStyleSheet("color: red")
+            lb_error = QLabel("")
+            lb_error.setStyleSheet("color: red")
 
             def show_bool_combo():
-                if type_combo.currentText() == "bool":
+                if cb_type.currentText() == "bool":
                     unique_values = self.data[col_name].dropna().unique()
 
                     if len(unique_values) > 2:
-                        error_label.setText("Erro: A coluna tem mais de 2 valores únicos")
-                        bool_combo.setVisible(False)
+                        lb_error.setText("Erro: A coluna tem mais de 2 valores únicos")
+                        cb_bool.setVisible(False)
+                        lb_bool.setVisible(False)
                         return
 
-                    bool_combo.clear()
-                    bool_combo.addItems([str(v) for v in unique_values]) 
-                    bool_combo.setVisible(True)
-                    error_label.clear()
+                    cb_bool.clear()
+                    cb_bool.addItems([str(v) for v in unique_values]) 
+                    cb_bool.setVisible(True)
+                    lb_bool.setVisible(True)
+                    lb_error.clear()
                 else:   
-                    bool_combo.setVisible(False)
-                    error_label.clear()
+                    cb_bool.setVisible(False)
+                    lb_bool.setVisible(False)
+                    lb_error.clear()
 
-            type_combo.currentTextChanged.connect(show_bool_combo)
+            cb_type.currentTextChanged.connect(show_bool_combo)
 
             save_button = QPushButton("Save")
             cancel_button = QPushButton("Cancel")
 
             def apply_change():
                 try:
-                    new_type = type_combo.currentText()
+                    new_type = cb_type.currentText()
 
                     if new_type == "bool":
                         unique_values = self.data[col_name].dropna().unique()
                         if len(unique_values) != 2:
                             raise ValueError("Coluna não pode ser convertida para booleano.")
 
-                        true_value = bool_combo.currentText()
+                        true_value = cb_bool.currentText()
                         self.data[col_name] = self.data[col_name].map(lambda x: x == true_value)
 
                     else:
@@ -195,17 +201,18 @@ class Main_window(QMainWindow):
 
                     self.lb_4.setText(f"Coluna '{col_name}' convertida para {new_type}")
                     self.update_defaut_table()
+                    self.updateDrawerInfo()
                     dialog.accept()
 
                 except Exception as e:
-                    error_label.setText(f"Erro: {e}")
+                    lb_error.setText(f"Erro: {e}")
 
             save_button.clicked.connect(apply_change)
             cancel_button.clicked.connect(dialog.reject)
 
-            layout.addRow("Novo tipo:", type_combo)
-            layout.addRow("True value:", bool_combo)
-            layout.addRow(error_label)
+            layout.addRow("Novo tipo:", cb_type)
+            layout.addRow(lb_bool, cb_bool)
+            layout.addRow(lb_error)
             layout.addRow(save_button, cancel_button)
 
             dialog.setLayout(layout)
@@ -224,15 +231,33 @@ class Main_window(QMainWindow):
             dialog.setWindowTitle(f"change type of the column {col_name}")
             dialog.setMinimumSize(300, 100)
             layout = QFormLayout()
+            def show_method_combo():
+                if null_handle_combo.currentText() == "interpolation":
+                    cb_interpolate_method.setVisible(True)
+                    lb_interpolate_method.setVisible(True)
+                else:
+                    cb_interpolate_method.setVisible(False)
+                    lb_interpolate_method.setVisible(False)
+                    
+            lb_interpolate_method = QLabel("Interpolate Method:")
+            cb_interpolate_method = QComboBox()
+            cb_interpolate_method.addItems([
+                'linear','time','pad','nearest','zero','slinear',
+                'quadratic','cubic','barycentric','krogh','polynomial',
+                'spline','piecewise_polynomial','pchip','akima','cubicspline'
+            ])
             
             null_handle_combo = QComboBox()
             null_handle_combo.addItems(["fill whith mean value",
                                         "fill whith median value",
                                         "fill with 0",
-                                        "delete null rows"
+                                        "delete null rows",
+                                        "interpolation"
                                         ])
+            null_handle_combo.currentIndexChanged.connect(show_method_combo)
             save_button = QPushButton("save")
             cancel_button = QPushButton("Cancel")
+            show_method_combo()
             
             def apply_change():
                 try:
@@ -245,8 +270,12 @@ class Main_window(QMainWindow):
                         self.data[col_name] = self.data[col_name].fillna(0)
                     elif cb_index == 3:
                         self.data = self.data.dropna(subset=[col_name])
+                    elif cb_index == 4:
+                        self.data[col_name] = self.data[col_name].interpolate(method=cb_interpolate_method.currentText())
+                        print(col_name,cb_interpolate_method.currentText())
                     self.lb_4.setText(f"Coluna '{col_name}' tratada")
                     self.update_defaut_table()
+                    self.updateDrawerInfo()
                     dialog.accept()
                 except Exception as e:
                     self.lb_4.setText(f"Um erro ocorreu durante a mudança: {e}")
@@ -256,6 +285,7 @@ class Main_window(QMainWindow):
             cancel_button.clicked.connect(dialog.reject)
             
             layout.addRow("Novo tipo:", null_handle_combo)
+            layout.addRow(lb_interpolate_method, cb_interpolate_method)
             layout.addRow(save_button, cancel_button)
             dialog.setLayout(layout)
             dialog.exec()
@@ -273,16 +303,29 @@ class Main_window(QMainWindow):
             self.lb_4.setText("No dataframe loaded")
              
     def initDrawer(self):
-
         self.drawer = QDockWidget("Details", self)
         self.drawer.setAllowedAreas(Qt.DockWidgetArea.RightDockWidgetArea)
-        
+
+        container = QWidget()
+        layout = QVBoxLayout()
+
         self.drawer_text = QTextEdit()
         self.drawer_text.setReadOnly(True)
-        self.drawer.setWidget(self.drawer_text)
-        
+
+        self.btn_duplicate_show = QPushButton("Show Duplicates")
+        self.btn_duplicate_show.clicked.connect(self.show_duplicate_rows)
+        self.btn_duplicate_drop = QPushButton("Drop Duplicates")
+        self.btn_duplicate_drop.clicked.connect(self.drop_duplicate_rows)
+
+        layout.addWidget(self.drawer_text)
+        layout.addWidget(self.btn_duplicate_show)
+        layout.addWidget(self.btn_duplicate_drop)
+
+        container.setLayout(layout)
+        self.drawer.setWidget(container)
+
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.drawer)
-        self.drawer.hide()  # Oculta o drawer inicialmente
+        self.drawer.hide()  
 
     def toggleDrawer(self):
 
@@ -321,8 +364,17 @@ class Main_window(QMainWindow):
             info_text.append(str(self.data.duplicated().sum()))
 
             self.drawer_text.setPlainText("\n".join(info_text))
+            if self.data.duplicated().sum() > 0:
+                self.btn_duplicate_show.setVisible(True)
+                self.btn_duplicate_drop.setVisible(True)
+            else:
+                self.btn_duplicate_show.setVisible(False)
+                self.btn_duplicate_drop.setVisible(False)
+            
         else:
             self.drawer_text.setPlainText("No Dataframe Loaded")
+            self.btn_duplicate_show.setVisible(False)
+            self.btn_duplicate_drop.setVisible(False)
             
     def open_graph_window(self):
        
@@ -331,6 +383,19 @@ class Main_window(QMainWindow):
             self.graph_window.show()
         else:
             self.lb_4.setText("No data loaded")
+            
+    def show_duplicate_rows(self):
+        if self.data is not None:
+            duplicated = self.data[self.data.duplicated(keep=False)].sort_values(by=self.data.columns.to_list()[0])
+            self.filtered_data =  duplicated
+            self.update_filtered_table()
+            self.lb_4.setText(f'The data have {duplicated.shape[0]} rows')
+            
+    def drop_duplicate_rows(self):
+        if self.data is not None:
+            self.data = self.data.drop_duplicates()
+            self.lb_4.setText(f'Duplicated rows deleted')
+            self.update_defaut_table()  
     
 if __name__ == '__main__':
     
