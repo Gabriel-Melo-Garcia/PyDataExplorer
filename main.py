@@ -1,16 +1,16 @@
 from PyQt6.QtWidgets import (
-    QMainWindow, QApplication, QWidget, QLineEdit,QTableWidgetItem,QDockWidget,
-    QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QFileDialog,QTextEdit,
-    QDialog, QComboBox, QFormLayout, QPushButton,QTableWidget
+    QMainWindow, QApplication, QWidget, QLineEdit, QTableWidgetItem, QDockWidget,
+    QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QFileDialog, QTextEdit,
+    QDialog, QComboBox, QFormLayout, QPushButton, QTableWidget, QListWidget
 )
-from PyQt6.QtGui import QAction
+from PyQt6.QtGui import QAction, QFont
 from PyQt6.QtCore import Qt
 import io
 import sys
 import pandas as pd
 from filter import FilterDialog
-from graph_view import GraphView
-
+from dashboard import DashboardView
+from group import GroupByDialog
 class Main_window(QMainWindow):
     def __init__(self):
         super().__init__() 
@@ -26,35 +26,39 @@ class Main_window(QMainWindow):
         menubar = self.menuBar()
         self.change_type_menu = menubar.addMenu("Change Type")
         self.null_value_handling_menu = menubar.addMenu("Handle Null")
+        self.description_menu = menubar.addMenu("description")
         
         #initiating the main widget and layouts
         central_widget = QWidget()
         main_layout = QHBoxLayout()
         left_btn_list_layout = QVBoxLayout()
-        table_layout = QVBoxLayout()        
+        table_layout = QVBoxLayout()     
+        self.table_widget = QTableWidget()   
         
         #btn add dataframe
         self.btn_add_dataframe = QPushButton("Add DataFrame")
         self.btn_add_dataframe.clicked.connect(self.add_data)
+        #btn show details
+        self.btn_show_details = QPushButton("Show Details")
+        self.btn_show_details.clicked.connect(self.toggleDrawer)
+        #btn decribe
+        self.btn_group_by = QPushButton("Group")
+        self.btn_group_by.clicked.connect(self.groupby_dialog)
         #btn filter data
         self.btn_filter_data = QPushButton("filter")
         self.btn_filter_data.clicked.connect(self.filter_data)
         #btn clean filter
         self.btn_clean_filter = QPushButton("clean filter")
         self.btn_clean_filter.clicked.connect(self.update_defaut_table)
-        #btn show details
-        self.btn_show_details = QPushButton("Show Details")
-        self.btn_show_details.clicked.connect(self.toggleDrawer)
         #btn open graph
         self.btn_open_graph = QPushButton("Graph")
         self.btn_open_graph.clicked.connect(self.open_graph_window)
         
-        self.table_widget = QTableWidget()
-    
         self.lb_4 = QLabel(" ")
         
         left_btn_list_layout.addWidget(self.btn_add_dataframe)
         left_btn_list_layout.addWidget(self.btn_show_details)
+        left_btn_list_layout.addWidget(self.btn_group_by)
         left_btn_list_layout.addWidget(self.btn_filter_data)
         left_btn_list_layout.addWidget(self.btn_clean_filter)
         left_btn_list_layout.addWidget(self.btn_open_graph)
@@ -75,17 +79,22 @@ class Main_window(QMainWindow):
     def add_data(self):
         file_dialog = QFileDialog()
         file_path, _ = file_dialog.getOpenFileName(self, "Open csv/xlsx File", "./data", "Files (*.csv *.xlsx)")
-        
-        if file_path:
-            if file_path.endswith(".csv"):  
-                self.data = pd.read_csv(file_path)
-            else:
-                self.data = pd.read_excel(file_path)
-        
-        self.lb_4.setText(f'The data was loaded with {self.data.shape[0]} rows and {self.data.shape[1]} columns')
-        self.update_change_type_menu() 
-        self.update_null_handling_menu()
-        self.update_defaut_table()
+        try:
+            if file_path:
+                if file_path.endswith(".csv"):  
+                    self.data = pd.read_csv(file_path)
+                    self.filterer_data = self.data.copy()
+                else:
+                    self.data = pd.read_excel(file_path)
+                    self.filterer_data = self.data.copy()
+
+            self.lb_4.setText(f'The data was loaded with {self.data.shape[0]} rows and {self.data.shape[1]} columns')
+            self.update_change_type_menu() 
+            self.update_null_handling_menu()
+            self.update_defaut_table()
+            self.update_description_menu()
+        except Exception as e:
+            self.lb_4.setText(f'error{e}')
             
     def update_defaut_table(self):
         if self.data is not None:
@@ -98,6 +107,7 @@ class Main_window(QMainWindow):
                     item = QTableWidgetItem(str(self.data.iat[row, col]))
                     self.table_widget.setItem(row, col, item)
             self.lb_4.setText(f'The dataframe have {self.data.shape[0]} rows and {self.data.shape[1]} columns')
+            self.filtered_data = self.data.copy()
         else:
             self.table_widget.setRowCount(0)
             self.table_widget.setColumnCount(0)
@@ -135,6 +145,18 @@ class Main_window(QMainWindow):
                 self.null_value_handling_menu.addAction(action)
         else:
             self.null_value_handling_menu.addAction("No Dataframe Loaded").setEnabled(False)
+        
+    def update_description_menu(self):
+        self.description_menu.clear()
+        if self.data is not None:
+            action_numeric = QAction('Numeric Columns', self)
+            action_categoric = QAction('Categoric Columns', self)
+            action_numeric.triggered.connect(self.show_numeric_describe)
+            action_categoric.triggered.connect(self.show_numeric_describe)
+            self.description_menu.addAction(action_numeric)
+            self.description_menu.addAction(action_categoric)
+        else:
+            self.description_menu.addAction("No Dataframe Loaded").setEnabled(False)
                   
     def change_type(self):
         column = self.sender()
@@ -379,27 +401,115 @@ class Main_window(QMainWindow):
     def open_graph_window(self):
        
         if self.data is not None:
-            self.graph_window = GraphView(self, self.data)  
+            # self.graph_window = GraphView(self, self.data)  
+            self.graph_window = DashboardView(self, self.data)
             self.graph_window.show()
         else:
             self.lb_4.setText("No data loaded")
             
     def show_duplicate_rows(self):
         if self.data is not None:
-            duplicated = self.data[self.data.duplicated(keep=False)].sort_values(by=self.data.columns.to_list()[0])
-            self.filtered_data =  duplicated
-            self.update_filtered_table()
-            self.lb_4.setText(f'The data have {duplicated.shape[0]} rows')
-            
+            try: 
+                duplicated = self.data[self.data.duplicated(keep=False)].sort_values(by=self.data.columns.to_list()[0])
+                self.filtered_data =  duplicated
+                self.update_filtered_table()
+                self.lb_4.setText(f'The data have {duplicated.shape[0]} rows')
+            except Exception as e:
+                self.lb_4.setText(f'error{e}') 
+                
     def drop_duplicate_rows(self):
         if self.data is not None:
-            self.data = self.data.drop_duplicates()
-            self.lb_4.setText(f'Duplicated rows deleted')
-            self.update_defaut_table()  
-    
+            try:
+                self.data = self.data.drop_duplicates()
+                self.lb_4.setText(f'Duplicated rows deleted')
+                self.update_defaut_table() 
+            except Exception as e:
+                self.lb_4.setText(f'error{e}') 
+                
+    def show_numeric_describe(self):
+        if self.data is not None:
+            dialog = QDialog(self)
+            table_describe = QTableWidget()
+            layout = QHBoxLayout()
+            dialog.setMinimumSize(800,300)
+            
+            def update_describe_table():
+                if self.filtered_data is not None:
+                    table_describe.setRowCount(self.filtered_data.shape[0])
+                    table_describe.setColumnCount(self.filtered_data.shape[1])
+                    table_describe.setHorizontalHeaderLabels(self.filtered_data.columns)
+
+                    for row in range(self.filtered_data.shape[0]):
+                        for col in range(self.filtered_data.shape[1]):
+                            item = QTableWidgetItem(str(self.filtered_data.iat[row, col]))
+                            table_describe.setItem(row, col, item)
+                            
+                else:
+                    table_describe.setRowCount(0)
+                    table_describe.setColumnCount(0)
+            
+            layout.addWidget(table_describe)
+            dialog.setLayout(layout)
+            self.filtered_data = self.data.describe().reset_index().rename(columns={"index": "Feature"})  
+            update_describe_table()
+            dialog.exec()
+            self.lb_4.setText(f'Description')
+        
+    def show_numeric_describe(self):
+        if self.data is not None:
+            dialog = QDialog(self)
+            table_describe = QTableWidget()
+            cb_columns = QComboBox()
+            list_unique = QListWidget()
+            main_layout = QHBoxLayout()
+            side_layout = QVBoxLayout()
+            dialog.setMinimumSize(800,300)
+            
+            def update_describe_table():
+                if self.filtered_data is not None:
+                    table_describe.setRowCount(self.filtered_data.shape[0])
+                    table_describe.setColumnCount(self.filtered_data.shape[1])
+                    table_describe.setHorizontalHeaderLabels(self.filtered_data.columns)
+
+                    for row in range(self.filtered_data.shape[0]):
+                        for col in range(self.filtered_data.shape[1]):
+                            item = QTableWidgetItem(str(self.filtered_data.iat[row, col]))
+                            table_describe.setItem(row, col, item)
+                            
+                else:
+                    table_describe.setRowCount(0)
+                    table_describe.setColumnCount(0)
+                    
+            def updata_cb_column():
+                cb_columns.clear()
+                for col in self.data.select_dtypes(include=['object']).columns:
+                    cb_columns.addItem(col)
+            
+            def list_unique_values():
+                list_unique.clear()
+                for value in self.data[cb_columns.currentText()].unique():
+                    list_unique.addItem(value)
+                
+            updata_cb_column()
+            list_unique_values()    
+            cb_columns.currentIndexChanged.connect(list_unique_values)
+            side_layout.addWidget(cb_columns)   
+            side_layout.addWidget(list_unique)  
+            main_layout.addWidget(table_describe,4)
+            main_layout.addLayout(side_layout,1)
+            dialog.setLayout(main_layout)
+            self.filtered_data = self.data.describe(include=[object]).reset_index().rename(columns={"index": "Feature"})  
+            update_describe_table()
+            dialog.exec()
+            self.lb_4.setText(f'Description')
+            
+    def groupby_dialog(self):
+        if self.data is not None:
+            dialog = GroupByDialog(self.filtered_data, self)
+            dialog.exec()
+
 if __name__ == '__main__':
     
     app = QApplication(sys.argv)
     window = Main_window()
     sys.exit(app.exec())
-    
