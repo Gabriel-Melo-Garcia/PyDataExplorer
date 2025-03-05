@@ -3,6 +3,7 @@ from PyQt6.QtCore import pyqtSignal
 
 class ChangeTypeView(QDialog):
     apply_change_signal = pyqtSignal(str, str, str)  # column, new_type, true_value
+    bool_value_selector_signal = pyqtSignal()
 
     def __init__(self, column, parent=None):
         super().__init__(parent)
@@ -40,10 +41,12 @@ class ChangeTypeView(QDialog):
         if self.cb_type.currentText() == "bool":
             self.lb_bool.setVisible(True)
             self.cb_bool.setVisible(True)
+            self.bool_value_selector_signal.emit()
             # O Controller pode preencher os valores únicos aqui via método separado
         else:
             self.lb_bool.setVisible(False)
             self.cb_bool.setVisible(False)
+            self.lb_error.setVisible(False)
 
     def apply_change(self):
         true_value = self.cb_bool.currentText() if self.cb_type.currentText() == "bool" else None
@@ -54,6 +57,7 @@ class ChangeTypeView(QDialog):
         if self.cb_type.currentText() == "bool":
             unique_vals = [str(v) for v in values]
             if len(unique_vals) > 2:
+                self.lb_error.setVisible(True)
                 self.lb_error.setText("Error: Column has more than 2 unique values")
                 self.cb_bool.clear()
                 self.cb_bool.setEnabled(False)

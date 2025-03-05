@@ -32,11 +32,10 @@ class Controller:
             self.update_drawer()
 
     def open_change_type_dialog(self, column):
-        dialog = ChangeTypeView(column, self.view)
-        if self.model.data is not None:
-            dialog.set_unique_values(self.model.get_unique_values(column))
-        dialog.apply_change_signal.connect(self.change_type)
-        dialog.exec()
+        self.dialog = ChangeTypeView(column, self.view)
+        self.dialog.bool_value_selector_signal.connect(self.update_cb_bool_type)
+        self.dialog.apply_change_signal.connect(self.change_type)
+        self.dialog.exec()
 
     def change_type(self, column, new_type, true_value):
         success, message = self.model.change_type(column, new_type, true_value)
@@ -44,6 +43,11 @@ class Controller:
         if success:
             self.view.update_table(self.model.data)
             self.update_drawer()
+    
+    def update_cb_bool_type(self):
+        if self.model.data is not None:
+            values = self.model.get_unique_values(self.dialog.column)
+            self.dialog.set_unique_values(values)
 
     def open_handle_null_dialog(self, column):
         dialog = HandleNullView(column, self.view)
