@@ -10,7 +10,8 @@ import sys
 
 class GraphView(QMainWindow):
     # Sinais para o Controller
-    graph_type_changed_signal = pyqtSignal(str, str, str)  # graph_type, x_column, y_column
+    standard_graph_signal = pyqtSignal(str, str, str)  # graph_type, x_column, y_column
+    grouped_graph_signal = pyqtSignal(str, str, str)  # group_column, x_column, agg_function
 
     def __init__(self,columns,parent=None):
         super().__init__(parent)
@@ -33,22 +34,19 @@ class GraphView(QMainWindow):
         self.tabs.addTab(self.tab_standard, "defaut")
         self.tabs.addTab(self.tab_grouped, "grouped")
 
-        # standard tab
+        # --- Aba Standard ---
         self.lb_name_graph = QLabel("Graph Type")
         self.cb_graph_name = QComboBox()
         self.cb_graph_name.addItems(["Scatter", "Bar", "Line", "Histogram"])
         self.cb_graph_name.currentIndexChanged.connect(self.update_butons)
-        # self.cb_graph_name.currentTextChanged.connect(self.update_graph)
 
         self.lb_x_column = QLabel("X Axis")
         self.cb_x_column = QComboBox()
-        self.cb_x_column.addItems(['coluna1','coluna2','coluna3'])
-        # self.cb_x_column.currentTextChanged.connect(self.update_graph)
+        self.cb_x_column.addItems(self.columns)
 
         self.lb_y_column = QLabel("Y Axis")
         self.cb_y_column = QComboBox()
-        self.cb_y_column.addItems(['coluna1','coluna2','coluna3'])
-        # self.cb_y_column.currentTextChanged.connect(self.update_graph)
+        self.cb_y_column.addItems(self.columns)
         
         self.standard_layout = QVBoxLayout(self.tab_standard)
         
@@ -60,23 +58,18 @@ class GraphView(QMainWindow):
         self.standard_layout.addWidget(self.cb_y_column)
         self.standard_layout.addStretch() 
         
-        # --------------------------------------------------------------------
-        
-        # tab grouped
+        # --- Aba Grouped ---
         self.lb_group_column = QLabel("group column")
         self.cb_group_column = QComboBox()
-        self.cb_group_column.addItems(['coluna1','coluna2','coluna3'])  # Tipos de gráficos suportados
-        # self.cb_graph_name.currentTextChanged.connect(self.update_graph)
+        self.cb_group_column.addItems(self.columns)  
 
         self.lb_x_column_group = QLabel("X column")
         self.cb_x_column_group = QComboBox()
-        self.cb_x_column_group.addItems(['coluna1','coluna2','coluna3'])
-        # self.cb_x_column.currentTextChanged.connect(self.update_graph)
+        self.cb_x_column_group.addItems(self.columns)
 
-        self.lb_y_column_group = QLabel("Y Axis")
-        self.cb_y_column_group = QComboBox()
-        self.cb_y_column_group.addItems(['sum','mean','coluna3'])
-        # self.cb_y_column.currentTextChanged.connect(self.update_graph)
+        self.lb_agg_function = QLabel("Aggregation")
+        self.cb_agg_function = QComboBox()
+        self.cb_agg_function.addItems(["sum", "mean", "min", "max"])
         
         self.grouped_layout = QVBoxLayout(self.tab_grouped)
         
@@ -84,10 +77,13 @@ class GraphView(QMainWindow):
         self.grouped_layout.addWidget(self.cb_group_column)
         self.grouped_layout.addWidget(self.lb_x_column_group)
         self.grouped_layout.addWidget(self.cb_x_column_group)
-        self.grouped_layout.addWidget(self.lb_y_column_group)
-        self.grouped_layout.addWidget(self.cb_y_column_group)
+        self.grouped_layout.addWidget(self.lb_agg_function)
+        self.grouped_layout.addWidget(self.cb_agg_function)
         self.grouped_layout.addStretch() 
+        
+        # Botão "Show"
         self.btn_show_graph = QPushButton('show')
+        self.btn_show_graph.clicked.connect(self.update_graph)
 
         # graph area
         self.graph_display = QWebEngineView()  # Usaremos Plotly com QWebEngineView
@@ -106,14 +102,31 @@ class GraphView(QMainWindow):
             self.cb_y_column.setVisible(True)
             
     def update_graph(self):
-        # Emite sinal apenas se ambos os eixos estiverem selecionados
-        if self.cb_x_column.currentText() and self.cb_y_column.currentText():
-            self.graph_type_changed_signal.emit(
-                self.cb_graph_name.currentText(),
-                self.cb_x_column.currentText(),
-                self.cb_y_column.currentText()
-            )
+        current_tab = self.tabs.currentWidget()
+        if current_tab == self.tab_standard:
+            if self.cb_x_column.currentText() and self.cb_y_column.currentText():
+                self.standard_graph_signal.emit(
+                    self.cb_graph_name.currentText(),
+                    self.cb_x_column.currentText(),
+                    self.cb_y_column.currentText() if self.cb_graph_name.currentText() != "Histogram" else None
+                )
+        
+        elif current_tab == self.tab_grouped:
+            if self.cb_x_column_group.currentText() and self.cb_agg_function.currentText():
+                self.grouped_graph_signal.emit(
+                    self.cb_group_column.currentText(),
+                    self.cb_x_column_group.currentText(),
+                    self.cb_agg_function.currentText()
+                )
 
     def display_graph(self, html_content):
         # Exibe o gráfico gerado pelo Controller
         self.graph_display.setHtml(html_content)
+        
+    def test_tab(self):
+        current_tab = self.tabs.currentWidget()
+        if current_tab == self.tab_standard:
+            print('standard')
+        elif current_tab == self.tab_grouped:
+            print('group')
+        

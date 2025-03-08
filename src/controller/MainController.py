@@ -1,14 +1,15 @@
-from src.views.DialogChangeTypeView import ChangeTypeView
+from src.views.ChangeTypeView import ChangeTypeView
 from src.views.HandleNullView import HandleNullView
 from src.views.FilterView import FilterView
 from src.views.GraphView import GraphView
+import plotly.express as px
 
 class Controller:
     def __init__(self, model, view):
         self.model = model
         self.view = view
         self.filter_view = None
-        self.graph_view = None  
+        self.graph = None  
         self.connect_signals()
 
     def connect_signals(self):
@@ -146,6 +147,45 @@ class Controller:
     def open_graph_view(self):
         if self.model.data is not None:
             self.graph = GraphView(self.model.get_columns(), self.view)
+            self.graph.standard_graph_signal.connect(self.update_standard_graph)
+            self.graph.grouped_graph_signal.connect(self.update_grouped_graph)
             self.graph.show()   
         else:
             self.view.update_status("No data loaded")
+    
+    def update_standard_graph(self, graph, x_column, y_column):
+        
+        if self.graph is not None:
+            try:
+                df = self.model.filtered_data
+                if graph == 'Scatter':
+                    fig = px.scatter(df, x = x_column , y = y_column)
+
+                elif graph == 'Bar':
+                    fig = px.bar(df, x = x_column , y = y_column)
+
+                elif graph == 'Line':
+                    fig = px.line(df, x = x_column , y = y_column)
+
+                elif graph == 'Histogram':
+                    fig = px.histogram(df, x = x_column)
+                
+                html_content = fig.to_html(include_plotlyjs='cdn')
+                self.graph.display_graph(html_content)
+
+            except Exception as e:
+                self.view.update_status(f"Error generating graph: {e}")
+
+    def update_grouped_graph(self,group_column, y_column, agg_func ):
+        
+        if self.graph is not None:
+            try:
+                df = self.model.group_df(group_column, y_column, agg_func)
+                fig = px.bar(df, x=group_column, y=y_column,)
+                html_content = fig.to_html(include_plotlyjs='cdn')
+                self.graph.display_graph(html_content)
+                
+            except Exception as e:
+
+                self.view.update_status(f"Error generating grouped graph: {e}")
+    

@@ -1,7 +1,7 @@
 import sys
 from PyQt6.QtWidgets import QApplication
 from src.views.MainView import MainView
-from src.controller.MainWindowController import Controller
+from src.controller.MainController import Controller
 from src.model.DataModel import DataModel
 
 

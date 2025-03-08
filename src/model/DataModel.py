@@ -117,3 +117,15 @@ class DataModel:
             return self.data[column].unique().tolist()
         return []
     
+    def group_df(self,group_column, x_column, agg_func):
+        
+        if agg_func == 'sum':
+            return self.filtered_data.groupby(group_column)[x_column].sum().reset_index()
+        elif agg_func == 'mean':
+            return self.filtered_data.groupby(group_column)[x_column].mean().reset_index()
+        elif agg_func == 'min':
+            return self.filtered_data.groupby(group_column)[x_column].sum().reset_index()
+        elif agg_func == 'max':
+            return self.filtered_data.groupby(group_column)[x_column].mean().reset_index()
+       
+       

@@ -17,6 +17,7 @@ class MainView(QMainWindow):
     open_change_type_dialog_signal = pyqtSignal(str)
     open_handle_null_dialog_signal = pyqtSignal(str)
     open_graph_view_signal = pyqtSignal()
+    
 
     def __init__(self):
         super().__init__()
@@ -43,9 +44,10 @@ class MainView(QMainWindow):
         self.table_widget = QTableWidget()
         self.btn_add_dataframe = QPushButton("Add DataFrame")
         self.btn_show_details = QPushButton("Show Details")
-        self.btn_group_by = QPushButton("Group")
-        self.btn_filter_data = QPushButton("filter")
-        self.btn_clean_filter = QPushButton("clean filter")
+        # self.btn_group_by = QPushButton("Group")
+        self.btn_filter_data = QPushButton("Filter")
+        self.btn_clean_filter = QPushButton("Clean Filter")
+        self.btn_map_values = QPushButton("Map")
         self.btn_open_graph = QPushButton("Graph")
         self.lb_status = QLabel(" ")
 
@@ -59,9 +61,10 @@ class MainView(QMainWindow):
         # Montar layout
         left_btn_list_layout.addWidget(self.btn_add_dataframe)
         left_btn_list_layout.addWidget(self.btn_show_details)
-        left_btn_list_layout.addWidget(self.btn_group_by)
+        # left_btn_list_layout.addWidget(self.btn_group_by)
         left_btn_list_layout.addWidget(self.btn_filter_data)
         left_btn_list_layout.addWidget(self.btn_clean_filter)
+        left_btn_list_layout.addWidget(self.btn_map_values)
         left_btn_list_layout.addWidget(self.btn_open_graph)
 
         table_layout.addWidget(self.table_widget, 4)
