@@ -17,6 +17,7 @@ class MainView(QMainWindow):
     open_change_type_dialog_signal = pyqtSignal(str)
     open_handle_null_dialog_signal = pyqtSignal(str)
     open_graph_view_signal = pyqtSignal()
+    open_map_values_view_signal = pyqtSignal()
     
 
     def __init__(self):
@@ -56,6 +57,7 @@ class MainView(QMainWindow):
         self.btn_show_details.clicked.connect(self.toggle_drawer)
         self.btn_filter_data.clicked.connect(self.filter_data_signal.emit)
         self.btn_clean_filter.clicked.connect(self.clean_filter_signal.emit)
+        self.btn_map_values.clicked.connect(self.open_map_values_view_signal.emit)
         self.btn_open_graph.clicked.connect(self.open_graph_view_signal.emit)
 
         # Montar layout

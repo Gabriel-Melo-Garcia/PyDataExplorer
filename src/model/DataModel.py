@@ -128,4 +128,40 @@ class DataModel:
         elif agg_func == 'max':
             return self.filtered_data.groupby(group_column)[x_column].mean().reset_index()
        
-       
+    def create_column(self, name):
+        if self.data is not None:
+            try:
+                self.data[name] = '0'
+                return True
+            except Exception as e:
+                return False
+    
+    def replace_values(self, column, old_value, new_value):
+        
+        if self.data is not None:
+            try:
+                self.data.loc[self.data[column] == old_value, column] = new_value
+                return [True ,None]
+            except Exception as e:
+                return [False ,e]
+    
+    def update_values_by_condition(self,condition_column,target_column,operator,condition_value,new_value):
+        
+        if self.data is not None:
+            try:
+                if operator == '<':
+                    self.data.loc[self.data[condition_column] < condition_value, target_column] = new_value
+                elif operator == '>':
+                    self.data.loc[self.data[condition_column] > condition_value, target_column] = new_value
+                elif operator == '<=':
+                    self.data.loc[self.data[condition_column] <= condition_value, target_column] = new_value
+                elif operator == '>=':
+                    self.data.loc[self.data[condition_column] >= condition_value, target_column] = new_value
+                elif operator == '==':
+                    self.data.loc[self.data[condition_column] == condition_value, target_column] = new_value
+                elif operator == '!=':
+                    self.data.loc[self.data[condition_column] != condition_value, target_column] = new_value
+            
+                return [True ,None]
+            except Exception as e:
+                return [False ,e]  
