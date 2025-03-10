@@ -1,14 +1,18 @@
-from src.views.DialogChangeTypeView import ChangeTypeView
+from src.views.ChangeTypeView import ChangeTypeView
 from src.views.HandleNullView import HandleNullView
 from src.views.FilterView import FilterView
 from src.views.GraphView import GraphView
+from src.views.MapValuesView import MapValuesView
+import plotly.express as px
+import pandas as pd
 
 class Controller:
     def __init__(self, model, view):
         self.model = model
         self.view = view
         self.filter_view = None
-        self.graph_view = None  
+        self.graph = None  
+        self.map_view = None
         self.connect_signals()
 
     def connect_signals(self):
@@ -22,6 +26,7 @@ class Controller:
         self.view.describe_categorical_signal.connect(self.describe_categorical)
         self.view.open_change_type_dialog_signal.connect(self.open_change_type_dialog)
         self.view.open_handle_null_dialog_signal.connect(self.open_handle_null_dialog)
+        self.view.open_map_values_view_signal.connect(self.open_map_values_view)
 
     def load_data(self, file_path):
         success, message = self.model.load_data(file_path)
@@ -146,6 +151,110 @@ class Controller:
     def open_graph_view(self):
         if self.model.data is not None:
             self.graph = GraphView(self.model.get_columns(), self.view)
+            self.graph.standard_graph_signal.connect(self.update_standard_graph)
+            self.graph.grouped_graph_signal.connect(self.update_grouped_graph)
             self.graph.show()   
         else:
             self.view.update_status("No data loaded")
+    
+    def update_standard_graph(self, graph, x_column, y_column):
+        
+        if self.graph is not None:
+            try:
+                df = self.model.filtered_data
+                if graph == 'Scatter':
+                    fig = px.scatter(df, x = x_column , y = y_column)
+
+                elif graph == 'Bar':
+                    fig = px.bar(df, x = x_column , y = y_column)
+
+                elif graph == 'Line':
+                    fig = px.line(df, x = x_column , y = y_column)
+
+                elif graph == 'Histogram':
+                    fig = px.histogram(df, x = x_column)
+                
+                html_content = fig.to_html(include_plotlyjs='cdn')
+                self.graph.display_graph(html_content)
+
+            except Exception as e:
+                self.view.update_status(f"Error generating graph: {e}")
+
+    def update_grouped_graph(self,group_column, y_column, agg_func ):
+        
+        if self.graph is not None:
+            try:
+                df = self.model.group_df(group_column, y_column, agg_func)
+                fig = px.bar(df, x=group_column, y=y_column,)
+                html_content = fig.to_html(include_plotlyjs='cdn')
+                self.graph.display_graph(html_content)
+                
+            except Exception as e:
+
+                self.view.update_status(f"Error generating grouped graph: {e}")
+    
+    def open_map_values_view(self):
+        if self.model.data is not None:
+            columns = self.model.get_columns()
+            self.map_view = MapValuesView(columns)
+            self.map_view.create_column_signal.connect(self.creat_column)
+            self.map_view.replace_values_signal.connect(self.replace_values)
+            self.map_view.update_values_by_condition_signal.connect(self.update_values_by_condition)
+            self.map_view.show()
+        else:
+            self.view.update_status("No data loaded")
+            
+    def creat_column(self,name):
+        if self.model.create_column(name):         
+            self.view.update_status('column created')
+            self.view.update_table(self.model.data)
+            columns = self.model.get_columns()
+            self.map_view.update_columns_cb(columns)
+            
+    def replace_values(self, column, old_value, new_value):
+        
+        if old_value and new_value:
+            old_value = self.normalize_value_type(column,old_value)
+            new_value = self.normalize_value_type(column,new_value)
+
+            reponse_status, error = self.model.replace_values(column, old_value, new_value)
+            # print(reponse_status)
+            if reponse_status:
+                self.view.update_status('value replaced')
+                self.view.update_table(self.model.data)
+            else:
+                self.view.update_status(f"error: {error}")
+           
+    def update_values_by_condition(self,condition_column,target_column,operator,condition_value,new_value):
+        
+        if condition_value and new_value:
+            condition_value = self.normalize_value_type(condition_column,condition_value)
+            new_value = self.normalize_value_type(target_column,new_value)
+            
+            reponse_status, error = self.model.update_values_by_condition(condition_column,target_column,operator,condition_value,new_value)
+            if reponse_status:
+                self.view.update_status('value updated')
+                self.view.update_table(self.model.data)
+            else:
+                self.view.update_status(f"error: {error}")
+            
+    def normalize_value_type(self, column, value):
+        
+        column_type = self.model.get_dtype(column)
+        
+        try:
+            if column_type == 'int64':
+                return int(value) 
+            elif column_type == 'float64':
+                return float(value) 
+            elif column_type == 'object':
+                return str(value) 
+            elif column_type == 'bool':
+                return bool(value) 
+            elif column_type == 'datetime64[ns]':
+                return pd.to_datetime(value) 
+            
+        except Exception as e:
+            self.view.update_status(f'error {e}')
+        
+        
