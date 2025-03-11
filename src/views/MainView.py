@@ -3,7 +3,7 @@ from PyQt6.QtWidgets import (
     QTableWidget, QDockWidget, QTextEdit, QTableWidgetItem
 )
 from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QAction
+from PyQt6.QtGui import QAction, QIcon ,QShortcut ,QKeySequence
 
 class MainView(QMainWindow):
     # Sinais existentes
@@ -18,6 +18,7 @@ class MainView(QMainWindow):
     open_handle_null_dialog_signal = pyqtSignal(str)
     open_graph_view_signal = pyqtSignal()
     open_map_values_view_signal = pyqtSignal()
+    undo_signal = pyqtSignal()
     
 
     def __init__(self):
@@ -74,9 +75,13 @@ class MainView(QMainWindow):
 
         main_layout.addLayout(left_btn_list_layout, 1)
         main_layout.addLayout(table_layout, 3)
+        
+        self.shortcut_undo = QShortcut(QKeySequence("Ctrl+Z"), self)
+        self.shortcut_undo.activated.connect(self.undo_signal.emit)
 
         central_widget.setLayout(main_layout)
         self.setCentralWidget(central_widget)
+
 
     def open_file_dialog(self):
         file_path, _ = QFileDialog.getOpenFileName(self, "Open csv/xlsx File", "./data", "Files (*.csv *.xlsx)")
@@ -85,13 +90,14 @@ class MainView(QMainWindow):
 
     def update_table(self, dataframe):
         if dataframe is not None:
-            self.table_widget.setRowCount(dataframe.shape[0])
-            self.table_widget.setColumnCount(dataframe.shape[1])
+            self.table_widget.clear()
+            self.table_widget.setRowCount(0)
+            self.table_widget.setColumnCount(len(dataframe.columns))
             self.table_widget.setHorizontalHeaderLabels(dataframe.columns)
-            for row in range(dataframe.shape[0]):
-                for col in range(dataframe.shape[1]):
-                    item = QTableWidgetItem(str(dataframe.iat[row, col]))
-                    self.table_widget.setItem(row, col, item)
+            self.table_widget.setRowCount(len(dataframe))
+            for row_idx, row in dataframe.iterrows():
+                for col_idx, value in enumerate(row):
+                    self.table_widget.setItem(row_idx, col_idx, QTableWidgetItem(str(value)))
         else:
             self.table_widget.setRowCount(0)
             self.table_widget.setColumnCount(0)

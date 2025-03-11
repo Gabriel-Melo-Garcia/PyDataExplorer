@@ -7,8 +7,12 @@ class DataModel:
         self.data = None
         self.filtered_data = None
         self.selected_columns = []
+        self.history = []  
+        self.max_history = 10
 
     def load_data(self, file_path):
+        if self.data is not None: 
+            self.save_diff("load_data", {})
         try:
             if file_path.endswith(".csv"):
                 self.data = pd.read_csv(file_path)
@@ -21,6 +25,7 @@ class DataModel:
             return False, f"Error: {e}"
 
     def apply_filter(self, query_string, selected_columns):
+        # self.save_diff("apply_filter", {"original_data": self.data.copy()})
         try:
             if query_string:
                 self.filtered_data = self.data.query(query_string)
@@ -33,6 +38,8 @@ class DataModel:
             return False, f"Error applying filter: {e}"
 
     def change_type(self, column, new_type, true_value=None):
+        original_values = self.data[column].copy()
+        self.save_diff("change_type", {"column": column, "original_values": original_values})
         try:
             if new_type == "bool":
                 if len(self.data[column].dropna().unique()) != 2:
@@ -48,6 +55,8 @@ class DataModel:
             return False, f"Error: {e}"
 
     def handle_null(self, column, method, interpolate_method=None):
+        original_values = self.data[column].copy()
+        self.save_diff("handle_null", {"column": column, "original_values": original_values})
         try:
             if method == "mean":
                 self.data[column] = self.data[column].fillna(round(self.data[column].mean(),2))
@@ -87,6 +96,8 @@ class DataModel:
 
     def drop_duplicates(self):
         if self.data is not None:
+            duplicates = self.data[self.data.duplicated(keep=False)].copy()
+            self.save_diff("drop_duplicates", {"removed_rows": duplicates})
             self.data = self.data.drop_duplicates()
             self.filtered_data = self.data.copy()
             return True, "Duplicated rows deleted"
@@ -124,12 +135,13 @@ class DataModel:
         elif agg_func == 'mean':
             return self.filtered_data.groupby(group_column)[x_column].mean().reset_index()
         elif agg_func == 'min':
-            return self.filtered_data.groupby(group_column)[x_column].sum().reset_index()
+            return self.filtered_data.groupby(group_column)[x_column].min().reset_index()
         elif agg_func == 'max':
-            return self.filtered_data.groupby(group_column)[x_column].mean().reset_index()
+            return self.filtered_data.groupby(group_column)[x_column].max().reset_index()
        
     def create_column(self, name):
         if self.data is not None:
+            self.save_diff("create_column",{"column":name})
             try:
                 self.data[name] = '0'
                 return True
@@ -139,6 +151,8 @@ class DataModel:
     def replace_values(self, column, old_value, new_value):
         
         if self.data is not None:
+            original_values = self.data[column].copy()
+            self.save_diff("replace_values", {"column": column, "original_values": original_values})
             try:
                 self.data.loc[self.data[column] == old_value, column] = new_value
                 return [True ,None]
@@ -148,6 +162,8 @@ class DataModel:
     def update_values_by_condition(self,condition_column,target_column,operator,condition_value,new_value):
         
         if self.data is not None:
+            original_values = self.data[target_column].copy()
+            self.save_diff("replace_by_condition", {"column": target_column, "original_values": original_values})
             try:
                 if operator == '<':
                     self.data.loc[self.data[condition_column] < condition_value, target_column] = new_value
@@ -165,3 +181,42 @@ class DataModel:
                 return [True ,None]
             except Exception as e:
                 return [False ,e]  
+    
+    def save_diff(self, operation, details):
+
+        if len(self.history) >= self.max_history:
+            self.history.pop(0)  
+        self.history.append({"operation": operation, "details": details})
+        
+    def undo(self):
+        if not self.history:
+            return False, "No actions to undo"
+        
+        last_action = self.history.pop()
+        operation = last_action["operation"]
+        details = last_action["details"]
+
+        if operation == "load_data":
+            self.data = None
+            self.filtered_data = None
+            self.selected_columns = []
+            
+        elif (operation == "change_type" or operation == "handle_null" or
+            operation == "replace_values" or operation == "replace_by_condition"):
+            column = details["column"]
+            original_values = details["original_values"]
+            self.data[column] = original_values
+            self.filtered_data = self.data.copy()
+            
+        elif operation == "drop_duplicates":
+            removed_rows = details["removed_rows"]
+            self.data = pd.concat([self.data, removed_rows]).sort_index()
+            self.filtered_data = self.data.copy()
+            
+        elif operation == "create_column":
+            column_created = details["column"]
+            self.data.drop(columns=column_created,inplace=True)
+            self.filtered_data = self.data.copy()
+            
+
+        return True, f"Undone {operation}"
