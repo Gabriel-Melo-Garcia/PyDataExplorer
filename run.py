@@ -5,7 +5,6 @@ from src.controller.MainController import Controller
 from src.model.DataModel import DataModel
 
 
-
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     model = DataModel()

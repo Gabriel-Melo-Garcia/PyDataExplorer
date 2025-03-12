@@ -3,18 +3,19 @@ name = "pyexplorer-mvc"
 version = "0.1.0"
 description = ""
 authors = [
-    {name = "hendgarcia",email = "gabrielmelogarcia.ie@gmail.com"}
+    {name = "hendgarcia", email = "gabrielmelogarcia.ie@gmail.com"}
 ]
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "pyqt6 (>=6.8.1,<7.0.0)",
-    "pandas (>=2.2.3,<3.0.0)",
-    "pyqt6-webengine (>=6.8.0,<7.0.0)",
-    "plotly (>=6.0.0,<7.0.0)",
-    "matplotlib (>=3.10.1,<4.0.0)"
+    "pyqt6>=6.8.1,<7.0.0",
+    "pandas>=2.2.3,<3.0.0",
+    "plotly>=6.0.0,<7.0.0",
+    "matplotlib>=3.10.1,<4.0.0",
+    "xgboost>=2.1.4,<3.0.0",
+    "scikit-learn>=1.6.1,<2.0.0",
+    "joblib>=1.4.2,<2.0.0" 
 ]
-
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

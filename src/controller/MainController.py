@@ -3,6 +3,8 @@ from src.views.HandleNullView import HandleNullView
 from src.views.FilterView import FilterView
 from src.views.GraphView import GraphView
 from src.views.MapValuesView import MapValuesView
+from src.views.classification_view import ClassificationView
+from PyQt6.QtWidgets import QFileDialog
 import plotly.express as px
 import pandas as pd
 
@@ -30,6 +32,8 @@ class Controller:
         self.view.open_handle_null_dialog_signal.connect(self.open_handle_null_dialog)
         self.view.open_map_values_view_signal.connect(self.open_map_values_view)
         self.view.undo_signal.connect(self.undo_action)
+        self.view.open_classification_view_signal.connect(self.open_classification_view)
+        self.view.save_dataframe_signal.connect(self.save_dataframe)
 
     def load_data(self, file_path):
         success, message = self.model.load_data(file_path)
@@ -281,4 +285,63 @@ class Controller:
         if success:
             self.update_ui(self.model.data , message)
             self.update_drawer()
+            
+    def save_dataframe(self,file_path, selected_filter ):
         
+        """Abre um QFileDialog para salvar o DataFrame e executa a ação."""
+        
+        if self.model.data is None:
+            self.view.update_status("No DataFrame to save")
+            return
+
+        # Abre o QFileDialog para salvar
+        file_path, selected_filter = QFileDialog.getSaveFileName(
+            self.view, 
+            "Save DataFrame", 
+            "./data", 
+            "CSV Files (*.csv);;Excel Files (*.xlsx)"
+        )
+        if file_path:
+            try:
+                if selected_filter == "CSV Files (*.csv)":
+                    if not file_path.endswith(".csv"):
+                        file_path += ".csv"
+                    self.model.data.to_csv(file_path, index=False)
+                elif selected_filter == "Excel Files (*.xlsx)":
+                    if not file_path.endswith(".xlsx"):
+                        file_path += ".xlsx"
+                    self.model.data.to_excel(file_path, index=False)
+                self.view.update_status(f"DataFrame saved to {file_path}")
+            except Exception as e:
+                self.view.update_status(f"Error saving DataFrame: {e}")
+    
+    def open_classification_view(self):
+        if self.model.data is not None:
+            self.classification_view = ClassificationView(self.model.get_columns(), self.view)
+            self.classification_view.train_models_signal.connect(self.train_classification_models)
+            self.classification_view.predict_signal.connect(self.predict_with_model)
+            self.classification_view.save_model_signal.connect(self.save_model)
+            self.classification_view.load_model_signal.connect(self.load_model)
+            self.classification_view.finished.connect(self.clear_classification_view)
+            self.classification_view.exec()
+        else:
+            self.view.update_status("No data loaded")
+
+    def clear_classification_view(self):
+        self.classification_view = None
+
+    def train_classification_models(self, features, target, model):
+        # Lógica para treinar modelos (será implementada depois)
+        pass
+
+    def predict_with_model(self, input_values):
+        # Lógica para predição (será implementada depois)
+        pass
+
+    def save_model(self):
+        # Lógica para salvar modelos
+        pass
+
+    def load_model(self):
+        # Lógica para carregar modelos
+        pass

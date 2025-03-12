@@ -6,7 +6,7 @@ from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QAction, QIcon ,QShortcut ,QKeySequence
 
 class MainView(QMainWindow):
-    # Sinais existentes
+    # Signals
     load_data_signal = pyqtSignal(str)
     filter_data_signal = pyqtSignal()
     clean_filter_signal = pyqtSignal()
@@ -19,6 +19,8 @@ class MainView(QMainWindow):
     open_graph_view_signal = pyqtSignal()
     open_map_values_view_signal = pyqtSignal()
     undo_signal = pyqtSignal()
+    open_classification_view_signal = pyqtSignal()
+    save_dataframe_signal = pyqtSignal(str,str)
     
 
     def __init__(self):
@@ -32,11 +34,19 @@ class MainView(QMainWindow):
 
         # Menu bar
         menubar = self.menuBar()
+        self.File_menu = menubar.addMenu("File")
         self.change_type_menu = menubar.addMenu("Change Type")
         self.null_value_handling_menu = menubar.addMenu("Handle Null")
         self.description_menu = menubar.addMenu("description")
+        
+        add_dataframe_action = QAction("Open Dataframe", self)
+        save_dataframe_action = QAction("Save Dataframe", self)
+        add_dataframe_action.triggered.connect(self.open_file_dialog)
+        save_dataframe_action.triggered.connect(self.save_dataframe_signal.emit)
+        self.File_menu.addAction(add_dataframe_action)
+        self.File_menu.addAction(save_dataframe_action)
 
-        # Layout principal
+        # Main Layout 
         central_widget = QWidget()
         main_layout = QHBoxLayout()
         left_btn_list_layout = QVBoxLayout()
@@ -44,31 +54,34 @@ class MainView(QMainWindow):
 
         # Widgets
         self.table_widget = QTableWidget()
-        self.btn_add_dataframe = QPushButton("Add DataFrame")
+        # self.btn_add_dataframe = QPushButton("Add DataFrame")
         self.btn_show_details = QPushButton("Show Details")
         # self.btn_group_by = QPushButton("Group")
         self.btn_filter_data = QPushButton("Filter")
         self.btn_clean_filter = QPushButton("Clean Filter")
         self.btn_map_values = QPushButton("Map")
         self.btn_open_graph = QPushButton("Graph")
+        self.btn_classification = QPushButton("Classification")
         self.lb_status = QLabel(" ")
 
-        # Conectar botões
-        self.btn_add_dataframe.clicked.connect(self.open_file_dialog)
+        # Connects
+        # self.btn_add_dataframe.clicked.connect(self.open_file_dialog)
         self.btn_show_details.clicked.connect(self.toggle_drawer)
         self.btn_filter_data.clicked.connect(self.filter_data_signal.emit)
         self.btn_clean_filter.clicked.connect(self.clean_filter_signal.emit)
         self.btn_map_values.clicked.connect(self.open_map_values_view_signal.emit)
         self.btn_open_graph.clicked.connect(self.open_graph_view_signal.emit)
+        self.btn_classification.clicked.connect(self.open_classification_view_signal.emit)
 
-        # Montar layout
-        left_btn_list_layout.addWidget(self.btn_add_dataframe)
+        # layout build-up
+        # left_btn_list_layout.addWidget(self.btn_add_dataframe)
         left_btn_list_layout.addWidget(self.btn_show_details)
         # left_btn_list_layout.addWidget(self.btn_group_by)
         left_btn_list_layout.addWidget(self.btn_filter_data)
         left_btn_list_layout.addWidget(self.btn_clean_filter)
         left_btn_list_layout.addWidget(self.btn_map_values)
         left_btn_list_layout.addWidget(self.btn_open_graph)
+        left_btn_list_layout.addWidget(self.btn_classification)
 
         table_layout.addWidget(self.table_widget, 4)
         table_layout.addWidget(self.lb_status, 1)
@@ -117,6 +130,7 @@ class MainView(QMainWindow):
                 null_action.triggered.connect(lambda _, col=column: self.open_handle_null_dialog_signal.emit(col))
                 self.change_type_menu.addAction(change_action)
                 self.null_value_handling_menu.addAction(null_action)
+            
             desc_numeric = QAction("Numeric Columns", self)
             desc_categoric = QAction("Categoric Columns", self)
             desc_numeric.triggered.connect(self.describe_numeric_signal.emit)
@@ -154,3 +168,5 @@ class MainView(QMainWindow):
         self.drawer_text.setPlainText(info)
         self.btn_duplicate_show.setVisible(has_duplicates)
         self.btn_duplicate_drop.setVisible(has_duplicates)
+        
+        
