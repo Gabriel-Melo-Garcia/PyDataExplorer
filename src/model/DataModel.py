@@ -6,7 +6,6 @@ from sklearn.neighbors import KNeighborsClassifier
 from xgboost import XGBClassifier
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import accuracy_score
-
 import time
 import pandas as pd
 import io
@@ -26,6 +25,8 @@ class DataModel:
         self.selected_columns = []
         self.history = []  
         self.max_history = 10
+        self.models = {}  
+        self.scaler = StandardScaler()  
 
     def load_data(self, file_path):
         """
@@ -358,3 +359,95 @@ class DataModel:
             
 
         return True, f"Undone {operation}"
+    
+    def train_classification_models(self, features, target, model_name):
+        """Treina modelo(s) de classificação com pré-processamento."""
+        if self.data is None:
+            return False, "No data loaded", {}
+
+        X = self.data[features]
+        y = self.data[target]
+
+        # Pré-processamento
+        numeric_cols = X.select_dtypes(include=['int64', 'float64']).columns
+        categorical_cols = X.select_dtypes(include=['object']).columns
+
+        if numeric_cols.any():
+            X_numeric = pd.DataFrame(self.scaler.fit_transform(X[numeric_cols]), columns=numeric_cols)
+        else:
+            X_numeric = pd.DataFrame()
+
+        if categorical_cols.any():
+            X_categorical = pd.get_dummies(X[categorical_cols], drop_first=True)
+        else:
+            X_categorical = pd.DataFrame()
+
+        X_processed = pd.concat([X_numeric, X_categorical], axis=1)
+
+        X_train, X_test, y_train, y_test = train_test_split(X_processed, y, test_size=0.2, random_state=42)
+
+        model_dict = {
+            "Logistic Regression": LogisticRegression(),
+            "Random Forest": RandomForestClassifier(),
+            "SVM": SVC(),
+            "XGBoost": XGBClassifier(use_label_encoder=False, eval_metric='logloss'),
+            "KNN": KNeighborsClassifier()
+        }
+
+        results = {}
+        models_to_run = model_dict.keys() if model_name == "All" else [model_name]
+
+        for name in models_to_run:
+            model = model_dict[name]
+            start_time = time.time()
+            model.fit(X_train, y_train)
+            train_time = time.time() - start_time
+            y_pred = model.predict(X_test)
+            accuracy = accuracy_score(y_test, y_pred)
+
+            self.models[name] = {
+                "model": model,
+                "features": features,
+                "target": target,
+                "scaler": self.scaler
+            }
+            results[name] = {"accuracy": accuracy, "time": train_time}
+
+        return True, "Models trained successfully", results
+
+    def predict_with_model(self, model_name, input_values):
+        """Faz predição com um modelo treinado."""
+        if model_name not in self.models:
+            return False, "Model not trained", None
+
+        model_info = self.models[model_name]
+        model = model_info["model"]
+        features = model_info["features"]
+        scaler = model_info["scaler"]
+
+        # Criar DataFrame com os valores inseridos
+        input_df = pd.DataFrame([input_values], columns=features)
+
+        # Pré-processamento dos valores de entrada
+        numeric_cols = input_df.select_dtypes(include=['int64', 'float64']).columns
+        categorical_cols = input_df.select_dtypes(include=['object']).columns
+
+        if numeric_cols.any():
+            input_numeric = pd.DataFrame(scaler.transform(input_df[numeric_cols]), columns=numeric_cols)
+        else:
+            input_numeric = pd.DataFrame()
+
+        if categorical_cols.any():
+            input_categorical = pd.get_dummies(input_df[categorical_cols], drop_first=True)
+        else:
+            input_categorical = pd.DataFrame()
+
+        input_processed = pd.concat([input_numeric, input_categorical], axis=1)
+
+        # Garantir que as colunas correspondam ao treinamento
+        for col in model_info["model"].feature_names_in_:
+            if col not in input_processed.columns:
+                input_processed[col] = 0
+
+        prediction = model.predict(input_processed)
+        return True, "Prediction successful", prediction[0]

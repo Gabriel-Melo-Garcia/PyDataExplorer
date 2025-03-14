@@ -3,10 +3,12 @@ from src.views.HandleNullView import HandleNullView
 from src.views.FilterView import FilterView
 from src.views.GraphView import GraphView
 from src.views.MapValuesView import MapValuesView
-from src.views.classification_view import ClassificationView
+from src.views.ClassificationView import ClassificationView
+from src.workers.ClassificationWorker import ClassificationWorker
 from PyQt6.QtWidgets import QFileDialog
 import plotly.express as px
 import pandas as pd
+import joblib
 
 class Controller:
     def __init__(self, model, view):
@@ -17,6 +19,7 @@ class Controller:
         self.handle_null_dialog = None
         self.graph = None  
         self.map_view = None
+        self.classification_view = None
         self.connect_signals()
 
     def connect_signals(self):
@@ -286,7 +289,7 @@ class Controller:
             self.update_ui(self.model.data , message)
             self.update_drawer()
             
-    def save_dataframe(self,file_path, selected_filter ):
+    def save_dataframe(self):
         
         """Abre um QFileDialog para salvar o DataFrame e executa a ação."""
         
@@ -326,22 +329,63 @@ class Controller:
             self.classification_view.exec()
         else:
             self.view.update_status("No data loaded")
+            
+    def train_classification_models(self, features, target, model):
+        
+        worker = ClassificationWorker(self.model, features, target, model)
+        self.classification_view.show_loading()  
+        worker.finished.connect(lambda success, message, results: self._on_training_finished(success, message, results, worker))
+        worker.start()
+    
+    def _on_training_finished(self, success, message, results, worker):
+        self.classification_view.hide_loading() 
+        self.view.update_status(message)
+        if success:
+            self.classification_view.update_results(results)
+        worker.deleteLater()
+            
+
+    def predict_with_model(self, input_values):
+        # Assume que o último modelo treinado será usado, ou adicione um combobox para escolher
+        model_name = list(self.model.models.keys())[0] if self.model.models else None
+        if model_name:
+            success, message, prediction = self.model.predict_with_model(model_name, input_values)
+            self.view.update_status(message)
+            if success:
+                self.classification_view.update_prediction(prediction)
+
+    def save_model(self):
+        if not self.model.models:
+            self.view.update_status("No models to save")
+            return
+
+        file_path, _ = QFileDialog.getSaveFileName(
+            self.view, "Save Model", "./models", "Joblib Files (*.joblib)"
+        )
+        if file_path:
+            if not file_path.endswith(".joblib"):
+                file_path += ".joblib"
+            try:
+                joblib.dump(self.model.models, file_path)
+                self.view.update_status(f"Models saved to {file_path}")
+            except Exception as e:
+                self.view.update_status(f"Error saving models: {e}")
+
+    def load_model(self):
+        file_path, _ = QFileDialog.getOpenFileName(
+            self.view, "Load Model", "./models", "Joblib Files (*.joblib)"
+        )
+        if file_path:
+            try:
+                self.model.models = joblib.load(file_path)
+                self.view.update_status(f"Models loaded from {file_path}")
+                # Atualizar a aba de predição com as colunas do modelo carregado
+                if self.model.models:
+                    first_model = list(self.model.models.keys())[0]
+                    features = self.model.models[first_model]["features"]
+                    self.classification_view.update_prediction_fields(features)
+            except Exception as e:
+                self.view.update_status(f"Error loading models: {e}")
 
     def clear_classification_view(self):
         self.classification_view = None
-
-    def train_classification_models(self, features, target, model):
-        # Lógica para treinar modelos (será implementada depois)
-        pass
-
-    def predict_with_model(self, input_values):
-        # Lógica para predição (será implementada depois)
-        pass
-
-    def save_model(self):
-        # Lógica para salvar modelos
-        pass
-
-    def load_model(self):
-        # Lógica para carregar modelos
-        pass

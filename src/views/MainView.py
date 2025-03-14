@@ -20,7 +20,7 @@ class MainView(QMainWindow):
     open_map_values_view_signal = pyqtSignal()
     undo_signal = pyqtSignal()
     open_classification_view_signal = pyqtSignal()
-    save_dataframe_signal = pyqtSignal(str,str)
+    save_dataframe_signal = pyqtSignal()
     
 
     def __init__(self):
@@ -91,6 +91,10 @@ class MainView(QMainWindow):
         
         self.shortcut_undo = QShortcut(QKeySequence("Ctrl+Z"), self)
         self.shortcut_undo.activated.connect(self.undo_signal.emit)
+        self.shortcut_save = QShortcut(QKeySequence("Ctrl+S"), self)
+        self.shortcut_save.activated.connect(self.save_dataframe_signal.emit)
+        self.shortcut_open_data = QShortcut(QKeySequence("Ctrl+O"), self)
+        self.shortcut_open_data.activated.connect(self.open_file_dialog)
 
         central_widget.setLayout(main_layout)
         self.setCentralWidget(central_widget)
