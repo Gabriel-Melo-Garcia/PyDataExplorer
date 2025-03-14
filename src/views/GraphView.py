@@ -86,7 +86,7 @@ class GraphView(QMainWindow):
         self.btn_show_graph.clicked.connect(self.update_graph)
 
         # graph area
-        self.graph_display = QWebEngineView()  # Usaremos Plotly com QWebEngineView
+        self.graph_display = QWebEngineView()  
         
         self.control_panel.addWidget(self.tabs)
         self.control_panel.addWidget(self.btn_show_graph)

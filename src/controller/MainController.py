@@ -3,16 +3,23 @@ from src.views.HandleNullView import HandleNullView
 from src.views.FilterView import FilterView
 from src.views.GraphView import GraphView
 from src.views.MapValuesView import MapValuesView
+from src.views.ClassificationView import ClassificationView
+from src.workers.ClassificationWorker import ClassificationWorker
+from PyQt6.QtWidgets import QFileDialog
 import plotly.express as px
 import pandas as pd
+import joblib
 
 class Controller:
     def __init__(self, model, view):
         self.model = model
         self.view = view
         self.filter_view = None
+        self.change_type_dialog = None 
+        self.handle_null_dialog = None
         self.graph = None  
         self.map_view = None
+        self.classification_view = None
         self.connect_signals()
 
     def connect_signals(self):
@@ -27,6 +34,9 @@ class Controller:
         self.view.open_change_type_dialog_signal.connect(self.open_change_type_dialog)
         self.view.open_handle_null_dialog_signal.connect(self.open_handle_null_dialog)
         self.view.open_map_values_view_signal.connect(self.open_map_values_view)
+        self.view.undo_signal.connect(self.undo_action)
+        self.view.open_classification_view_signal.connect(self.open_classification_view)
+        self.view.save_dataframe_signal.connect(self.save_dataframe)
 
     def load_data(self, file_path):
         success, message = self.model.load_data(file_path)
@@ -37,10 +47,11 @@ class Controller:
             self.update_drawer()
 
     def open_change_type_dialog(self, column):
-        self.dialog = ChangeTypeView(column, self.view)
-        self.dialog.bool_value_selector_signal.connect(self.update_cb_bool_type)
-        self.dialog.apply_change_signal.connect(self.change_type)
-        self.dialog.exec()
+        self.change_type_dialog = ChangeTypeView(column, self.view)
+        self.change_type_dialog.bool_value_selector_signal.connect(self.update_cb_bool_type)
+        self.change_type_dialog.apply_change_signal.connect(self.change_type)
+        self.change_type_dialog.finished.connect(self.clear_change_type_dialog)
+        self.change_type_dialog.exec()
 
     def change_type(self, column, new_type, true_value):
         success, message = self.model.change_type(column, new_type, true_value)
@@ -51,13 +62,17 @@ class Controller:
     
     def update_cb_bool_type(self):
         if self.model.data is not None:
-            values = self.model.get_unique_values(self.dialog.column)
-            self.dialog.set_unique_values(values)
+            values = self.model.get_unique_values(self.change_type_dialog.column)
+            self.change_type_dialog.set_unique_values(values)
+
+    def clear_change_type_dialog(self):
+        self.change_type_dialog = None
 
     def open_handle_null_dialog(self, column):
-        dialog = HandleNullView(column, self.view)
-        dialog.apply_null_handling_signal.connect(self.handle_null)
-        dialog.exec()
+        self.handle_null_dialog = HandleNullView(column, self.view)
+        self.handle_null_dialog.apply_null_handling_signal.connect(self.handle_null)
+        self.handle_null_dialog.finished.connect(self.clear_handle_null_dialog)
+        self.handle_null_dialog.exec()
 
     def handle_null(self, column, method, interpolate_method):
         success, message = self.model.handle_null(column, method, interpolate_method)
@@ -65,17 +80,20 @@ class Controller:
         if success:
             self.view.update_table(self.model.data)
             self.update_drawer()
+    
+    def clear_handle_null_dialog(self):
+        self.handle_null_dialog = None
 
     def open_filter_dialog(self):
         if self.model.data is not None:
-            self.filter_view = FilterView(self.model.get_columns(), self.view)  # Armazena a instância
+            self.filter_view = FilterView(self.model.get_columns(), self.view)  
             self.filter_view.add_condition_signal.connect(self.handle_add_condition)
             self.filter_view.apply_filter_signal.connect(self.apply_filter)
             self.filter_view.select_columns_signal.connect(self.show_column_selection)
             self.filter_view.column_changed_signal.connect(self.update_filter_actions)
-            self.update_filter_actions(self.filter_view.cb_column.currentText())  # Atualiza ações iniciais
+            self.update_filter_actions(self.filter_view.cb_column.currentText())  
             self.filter_view.exec()
-            self.filter_view = None  # Limpa a referência após fechar o diálogo
+            self.filter_view = None  
         else:
             self.view.update_status("No dataframe loaded")
 
@@ -230,7 +248,7 @@ class Controller:
         if condition_value and new_value:
             condition_value = self.normalize_value_type(condition_column,condition_value)
             new_value = self.normalize_value_type(target_column,new_value)
-            
+
             reponse_status, error = self.model.update_values_by_condition(condition_column,target_column,operator,condition_value,new_value)
             if reponse_status:
                 self.view.update_status('value updated')
@@ -239,22 +257,135 @@ class Controller:
                 self.view.update_status(f"error: {error}")
             
     def normalize_value_type(self, column, value):
-        
         column_type = self.model.get_dtype(column)
-        
         try:
             if column_type == 'int64':
-                return int(value) 
+                return int(value)
             elif column_type == 'float64':
-                return float(value) 
+                return float(value)
             elif column_type == 'object':
-                return str(value) 
+                return str(value)
             elif column_type == 'bool':
-                return bool(value) 
+                return value.lower() in ('true', '1', 'yes')
             elif column_type == 'datetime64[ns]':
-                return pd.to_datetime(value) 
-            
+                return pd.to_datetime(value)
+            else:
+                raise ValueError(f"Unsupported column type: {column_type}")
         except Exception as e:
-            self.view.update_status(f'error {e}')
+            self.view.update_status(f"Error normalizing value for {column}: {e}")
+            return value
         
+    def update_ui(self, data=None, message=None):
+        if data is not None:
+            self.view.update_table(data)
+        if message:
+            self.view.update_status(message)
+        self.update_drawer()
+    
+    def undo_action(self):
+        success, message = self.model.undo()
+        self.view.update_status(message)
+        if success:
+            self.update_ui(self.model.data , message)
+            self.update_drawer()
+            
+    def save_dataframe(self):
         
+        """Abre um QFileDialog para salvar o DataFrame e executa a ação."""
+        
+        if self.model.data is None:
+            self.view.update_status("No DataFrame to save")
+            return
+
+        # Abre o QFileDialog para salvar
+        file_path, selected_filter = QFileDialog.getSaveFileName(
+            self.view, 
+            "Save DataFrame", 
+            "./data", 
+            "CSV Files (*.csv);;Excel Files (*.xlsx)"
+        )
+        if file_path:
+            try:
+                if selected_filter == "CSV Files (*.csv)":
+                    if not file_path.endswith(".csv"):
+                        file_path += ".csv"
+                    self.model.data.to_csv(file_path, index=False)
+                elif selected_filter == "Excel Files (*.xlsx)":
+                    if not file_path.endswith(".xlsx"):
+                        file_path += ".xlsx"
+                    self.model.data.to_excel(file_path, index=False)
+                self.view.update_status(f"DataFrame saved to {file_path}")
+            except Exception as e:
+                self.view.update_status(f"Error saving DataFrame: {e}")
+    
+    def open_classification_view(self):
+        if self.model.data is not None:
+            self.classification_view = ClassificationView(self.model.get_columns(), self.view)
+            self.classification_view.train_models_signal.connect(self.train_classification_models)
+            self.classification_view.predict_signal.connect(self.predict_with_model)
+            self.classification_view.save_model_signal.connect(self.save_model)
+            self.classification_view.load_model_signal.connect(self.load_model)
+            self.classification_view.finished.connect(self.clear_classification_view)
+            self.classification_view.exec()
+        else:
+            self.view.update_status("No data loaded")
+            
+    def train_classification_models(self, features, target, model):
+        
+        worker = ClassificationWorker(self.model, features, target, model)
+        self.classification_view.show_loading()  
+        worker.finished.connect(lambda success, message, results: self._on_training_finished(success, message, results, worker))
+        worker.start()
+    
+    def _on_training_finished(self, success, message, results, worker):
+        self.classification_view.hide_loading() 
+        self.view.update_status(message)
+        if success:
+            self.classification_view.update_results(results)
+        worker.deleteLater()
+            
+
+    def predict_with_model(self, input_values):
+        # Assume que o último modelo treinado será usado, ou adicione um combobox para escolher
+        model_name = list(self.model.models.keys())[0] if self.model.models else None
+        if model_name:
+            success, message, prediction = self.model.predict_with_model(model_name, input_values)
+            self.view.update_status(message)
+            if success:
+                self.classification_view.update_prediction(prediction)
+
+    def save_model(self):
+        if not self.model.models:
+            self.view.update_status("No models to save")
+            return
+
+        file_path, _ = QFileDialog.getSaveFileName(
+            self.view, "Save Model", "./models", "Joblib Files (*.joblib)"
+        )
+        if file_path:
+            if not file_path.endswith(".joblib"):
+                file_path += ".joblib"
+            try:
+                joblib.dump(self.model.models, file_path)
+                self.view.update_status(f"Models saved to {file_path}")
+            except Exception as e:
+                self.view.update_status(f"Error saving models: {e}")
+
+    def load_model(self):
+        file_path, _ = QFileDialog.getOpenFileName(
+            self.view, "Load Model", "./models", "Joblib Files (*.joblib)"
+        )
+        if file_path:
+            try:
+                self.model.models = joblib.load(file_path)
+                self.view.update_status(f"Models loaded from {file_path}")
+                # Atualizar a aba de predição com as colunas do modelo carregado
+                if self.model.models:
+                    first_model = list(self.model.models.keys())[0]
+                    features = self.model.models[first_model]["features"]
+                    self.classification_view.update_prediction_fields(features)
+            except Exception as e:
+                self.view.update_status(f"Error loading models: {e}")
+
+    def clear_classification_view(self):
+        self.classification_view = None
