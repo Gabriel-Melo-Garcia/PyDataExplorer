@@ -25,18 +25,18 @@ PyDataExplorer is an interactive desktop application built with PyQt6 and pandas
 - **Poetry**: Dependency management.
 
 ## Usage
--Load a Dataset:
--Use the "File > Open Dataframe" menu to load a CSV or Excel file.
--A loading animation will appear while the data is processed.
--Explore and Clean Data:
--Use buttons like "Filter", "Handle Null", and "Change Type" to preprocess your dataset.
--Visualize data with the "Graph" button (powered by Plotly).
--Train Classification Models:
--Open the Classification Explorer via the dedicated button.
--Select features, a target column, and a model (or "All" to train multiple models in parallel).
--View results like accuracy and training time in the "Results" tab.
--Make Predictions:
--In the "Prediction" tab, enter feature values and click "Predict" to get results from the trained model.
--Save Your Work:
--Save the processed DataFrame via "File > Save Dataframe".
--Save trained models in the Classification Explorer for later use.
+- Load a Dataset:
+- Use the "File > Open Dataframe" menu to load a CSV or Excel file.
+- A loading animation will appear while the data is processed.
+- Explore and Clean Data:
+- Use buttons like "Filter", "Handle Null", and "Change Type" to preprocess your dataset.
+- Visualize data with the "Graph" button (powered by Plotly).
+- Train Classification Models:
+- Open the Classification Explorer via the dedicated button.
+- Select features, a target column, and a model (or "All" to train multiple models in parallel).
+- View results like accuracy and training time in the "Results" tab.
+- Make Predictions:
+- In the "Prediction" tab, enter feature values and click "Predict" to get results from the trained model.
+- Save Your Work:
+- Save the processed DataFrame via "File > Save Dataframe".
+- Save trained models in the Classification Explorer for later use.
