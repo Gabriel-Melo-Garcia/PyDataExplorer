@@ -1,9 +1,10 @@
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QFileDialog, 
-    QTableWidget, QDockWidget, QTextEdit, QTableWidgetItem
+    QTableWidget, QDockWidget, QTextEdit, QTableWidgetItem, QProgressBar
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QAction, QIcon ,QShortcut ,QKeySequence
+from src.workers.TableUpdateWorker import TableUpdateWorker
 
 class MainView(QMainWindow):
     # Signals
@@ -25,6 +26,7 @@ class MainView(QMainWindow):
 
     def __init__(self):
         super().__init__()
+        self.worker = None
         self.init_ui()
         self.init_drawer()
 
@@ -95,10 +97,14 @@ class MainView(QMainWindow):
         self.shortcut_save.activated.connect(self.save_dataframe_signal.emit)
         self.shortcut_open_data = QShortcut(QKeySequence("Ctrl+O"), self)
         self.shortcut_open_data.activated.connect(self.open_file_dialog)
+        
+        self.loading_bar = QProgressBar()
+        self.loading_bar.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.loading_bar.setVisible(False)
+        table_layout.addWidget(self.loading_bar)
 
         central_widget.setLayout(main_layout)
         self.setCentralWidget(central_widget)
-
 
     def open_file_dialog(self):
         file_path, _ = QFileDialog.getOpenFileName(self, "Open csv/xlsx File", "./data", "Files (*.csv *.xlsx)")
@@ -118,7 +124,7 @@ class MainView(QMainWindow):
         else:
             self.table_widget.setRowCount(0)
             self.table_widget.setColumnCount(0)
-
+     
     def update_status(self, message):
         self.lb_status.setText(message)
 
@@ -172,5 +178,12 @@ class MainView(QMainWindow):
         self.drawer_text.setPlainText(info)
         self.btn_duplicate_show.setVisible(has_duplicates)
         self.btn_duplicate_drop.setVisible(has_duplicates)
+    
+    # def show_loading(self):
+    #         self.loading_bar.setVisible(True)
+    #         self.loading_bar.setRange(0, 0)  
+
+    # def hide_loading(self):
+    #     self.loading_bar.setVisible(False)
         
         

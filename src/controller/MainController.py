@@ -5,6 +5,7 @@ from src.views.GraphView import GraphView
 from src.views.MapValuesView import MapValuesView
 from src.views.ClassificationView import ClassificationView
 from src.workers.ClassificationWorker import ClassificationWorker
+from src.workers.ChangeTypeWorker import ChangeTypeWorker
 from PyQt6.QtWidgets import QFileDialog
 import plotly.express as px
 import pandas as pd
@@ -44,8 +45,8 @@ class Controller:
         if success:
             self.view.update_table(self.model.data)
             self.view.update_menus(self.model.get_columns())
-            self.update_drawer()
-
+            self.update_drawer() 
+ 
     def open_change_type_dialog(self, column):
         self.change_type_dialog = ChangeTypeView(column, self.view)
         self.change_type_dialog.bool_value_selector_signal.connect(self.update_cb_bool_type)
@@ -54,11 +55,18 @@ class Controller:
         self.change_type_dialog.exec()
 
     def change_type(self, column, new_type, true_value):
-        success, message = self.model.change_type(column, new_type, true_value)
+        worker = ChangeTypeWorker(self.model,column, new_type, true_value)
+        self.view.show_loading()
+        worker.finished.connect(lambda success, message:self._on_change_type_finished(success, message, worker) )
+        worker.start()
+        
+    def _on_change_type_finished(self, success, message, worker):
+        self.view.hide_loading()
         self.view.update_status(message)
         if success:
             self.view.update_table(self.model.data)
             self.update_drawer()
+        worker.deleteLater()
     
     def update_cb_bool_type(self):
         if self.model.data is not None:
@@ -215,14 +223,14 @@ class Controller:
         if self.model.data is not None:
             columns = self.model.get_columns()
             self.map_view = MapValuesView(columns)
-            self.map_view.create_column_signal.connect(self.creat_column)
+            self.map_view.create_column_signal.connect(self.create_column)
             self.map_view.replace_values_signal.connect(self.replace_values)
             self.map_view.update_values_by_condition_signal.connect(self.update_values_by_condition)
             self.map_view.show()
         else:
             self.view.update_status("No data loaded")
             
-    def creat_column(self,name):
+    def create_column(self,name):
         if self.model.create_column(name):         
             self.view.update_status('column created')
             self.view.update_table(self.model.data)
@@ -343,10 +351,8 @@ class Controller:
         if success:
             self.classification_view.update_results(results)
         worker.deleteLater()
-            
 
     def predict_with_model(self, input_values):
-        # Assume que o último modelo treinado será usado, ou adicione um combobox para escolher
         model_name = list(self.model.models.keys())[0] if self.model.models else None
         if model_name:
             success, message, prediction = self.model.predict_with_model(model_name, input_values)
