@@ -330,6 +330,18 @@ class Controller:
         else:
             self.view.update_status("No data loaded")
             
+    def open_classification_view(self):
+        if self.model.data is not None:
+            self.classification_view = ClassificationView(self.model.get_columns(), self.view)
+            self.classification_view.train_models_signal.connect(self.train_classification_models)
+            self.classification_view.predict_signal.connect(self.predict_with_model)
+            self.classification_view.save_model_signal.connect(self.save_model)
+            self.classification_view.load_model_signal.connect(self.load_model)
+            self.classification_view.finished.connect(self.clear_classification_view)
+            self.classification_view.exec()
+        else:
+            self.view.update_status("No data loaded")
+            
     def train_classification_models(self, features, target, model):
         
         worker = ClassificationWorker(self.model, features, target, model)
