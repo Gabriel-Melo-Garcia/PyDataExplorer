@@ -5,6 +5,7 @@ from src.views.GraphView import GraphView
 from src.views.MapValuesView import MapValuesView
 from src.views.ClassificationView import ClassificationView
 from src.workers.ClassificationWorker import ClassificationWorker
+from src.model.ClassificationModel import ClassificationModel
 from PyQt6.QtWidgets import QFileDialog
 import plotly.express as px
 import pandas as pd
@@ -354,8 +355,7 @@ class Controller:
         self.view.update_status(message)
         if success:
             self.classification_view.update_results(results)
-        worker.deleteLater()
-            
+        worker.deleteLater()     
 
     def predict_with_model(self, input_values):
         # Assume que o último modelo treinado será usado, ou adicione um combobox para escolher
