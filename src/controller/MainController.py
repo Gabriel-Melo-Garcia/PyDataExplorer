@@ -5,6 +5,7 @@ from src.views.GraphView import GraphView
 from src.views.MapValuesView import MapValuesView
 from src.views.ClassificationView import ClassificationView
 from src.workers.ClassificationWorker import ClassificationWorker
+from src.model.ClassificationModel import ClassificationModel
 from PyQt6.QtWidgets import QFileDialog
 import plotly.express as px
 import pandas as pd
@@ -12,7 +13,8 @@ import joblib
 
 class Controller:
     def __init__(self, model, view):
-        self.model = model
+        self.data_model = model
+        self.classification_model = None
         self.view = view
         self.filter_view = None
         self.change_type_dialog = None 
@@ -39,11 +41,11 @@ class Controller:
         self.view.save_dataframe_signal.connect(self.save_dataframe)
 
     def load_data(self, file_path):
-        success, message = self.model.load_data(file_path)
+        success, message = self.data_model.load_data(file_path)
         self.view.update_status(message)
         if success:
-            self.view.update_table(self.model.data)
-            self.view.update_menus(self.model.get_columns())
+            self.view.update_table(self.data_model.data)
+            self.view.update_menus(self.data_model.get_columns())
             self.update_drawer()
 
     def open_change_type_dialog(self, column):
@@ -54,15 +56,15 @@ class Controller:
         self.change_type_dialog.exec()
 
     def change_type(self, column, new_type, true_value):
-        success, message = self.model.change_type(column, new_type, true_value)
+        success, message = self.data_model.change_type(column, new_type, true_value)
         self.view.update_status(message)
         if success:
-            self.view.update_table(self.model.data)
+            self.view.update_table(self.data_model.data)
             self.update_drawer()
     
     def update_cb_bool_type(self):
-        if self.model.data is not None:
-            values = self.model.get_unique_values(self.change_type_dialog.column)
+        if self.data_model.data is not None:
+            values = self.data_model.get_unique_values(self.change_type_dialog.column)
             self.change_type_dialog.set_unique_values(values)
 
     def clear_change_type_dialog(self):
@@ -75,18 +77,18 @@ class Controller:
         self.handle_null_dialog.exec()
 
     def handle_null(self, column, method, interpolate_method):
-        success, message = self.model.handle_null(column, method, interpolate_method)
+        success, message = self.data_model.handle_null(column, method, interpolate_method)
         self.view.update_status(message)
         if success:
-            self.view.update_table(self.model.data)
+            self.view.update_table(self.data_model.data)
             self.update_drawer()
     
     def clear_handle_null_dialog(self):
         self.handle_null_dialog = None
 
     def open_filter_dialog(self):
-        if self.model.data is not None:
-            self.filter_view = FilterView(self.model.get_columns(), self.view)  
+        if self.data_model.data is not None:
+            self.filter_view = FilterView(self.data_model.get_columns(), self.view)  
             self.filter_view.add_condition_signal.connect(self.handle_add_condition)
             self.filter_view.apply_filter_signal.connect(self.apply_filter)
             self.filter_view.select_columns_signal.connect(self.show_column_selection)
@@ -98,7 +100,7 @@ class Controller:
             self.view.update_status("No dataframe loaded")
 
     def handle_add_condition(self, column, action, value):
-        data_type = self.model.get_dtype(column)
+        data_type = self.data_model.get_dtype(column)
         if data_type in ['int64', 'float64']:
             try:
                 value = float(value) if '.' in value else int(value)
@@ -112,18 +114,18 @@ class Controller:
 
     def apply_filter(self, conditions, selected_columns):
         query_string = " and ".join(conditions) if conditions else ""
-        success, message = self.model.apply_filter(query_string, selected_columns)
+        success, message = self.data_model.apply_filter(query_string, selected_columns)
         self.view.update_status(message)
         if success:
-            self.view.update_table(self.model.filtered_data)
+            self.view.update_table(self.data_model.filtered_data)
 
     def show_column_selection(self):
         if self.filter_view:
-            self.filter_view.show_column_selection(self.model.get_columns(), self.filter_view.selected_columns)
+            self.filter_view.show_column_selection(self.data_model.get_columns(), self.filter_view.selected_columns)
             
     def update_filter_actions(self, column):
         if self.filter_view:  # Usa a instância armazenada
-            data_type = self.model.get_dtype(column)
+            data_type = self.data_model.get_dtype(column)
             if data_type in ['int64', 'float64']:
                 actions = ['==', '!=', '<', '>', '<=', '>=']
             else:
@@ -131,44 +133,44 @@ class Controller:
             self.filter_view.set_action_items(actions)
 
     def clean_filter(self):
-        self.model.filtered_data = self.model.data.copy()
-        self.model.selected_columns = self.model.get_columns()
-        self.view.update_table(self.model.data)
-        self.view.update_status(f"Filter cleared: {self.model.get_shape()[0]} rows, {self.model.get_shape()[1]} columns")
+        self.data_model.filtered_data = self.data_model.data.copy()
+        self.data_model.selected_columns = self.data_model.get_columns()
+        self.view.update_table(self.data_model.data)
+        self.view.update_status(f"Filter cleared: {self.data_model.get_shape()[0]} rows, {self.data_model.get_shape()[1]} columns")
 
     def show_duplicates(self):
-        duplicates = self.model.get_duplicates()
+        duplicates = self.data_model.get_duplicates()
         if duplicates is not None:
             self.view.update_table(duplicates)
             self.view.update_status(f"Showing {duplicates.shape[0]} duplicate rows")
 
     def drop_duplicates(self):
-        success, message = self.model.drop_duplicates()
+        success, message = self.data_model.drop_duplicates()
         self.view.update_status(message)
         if success:
-            self.view.update_table(self.model.data)
+            self.view.update_table(self.data_model.data)
             self.update_drawer()
 
     def describe_numeric(self):
-        desc = self.model.describe_numeric()
+        desc = self.data_model.describe_numeric()
         if desc is not None:
             self.view.update_table(desc)
             self.view.update_status("Numeric description")
 
     def describe_categorical(self):
-        desc = self.model.describe_categorical()
+        desc = self.data_model.describe_categorical()
         if desc is not None:
             self.view.update_table(desc)
             self.view.update_status("Categorical description")
 
     def update_drawer(self):
-        info = self.model.get_info()
-        has_duplicates = self.model.data.duplicated().sum() > 0 if self.model.data is not None else False
+        info = self.data_model.get_info()
+        has_duplicates = self.data_model.data.duplicated().sum() > 0 if self.data_model.data is not None else False
         self.view.update_drawer(info, has_duplicates)
         
     def open_graph_view(self):
-        if self.model.data is not None:
-            self.graph = GraphView(self.model.get_columns(), self.view)
+        if self.data_model.data is not None:
+            self.graph = GraphView(self.data_model.get_columns(), self.view)
             self.graph.standard_graph_signal.connect(self.update_standard_graph)
             self.graph.grouped_graph_signal.connect(self.update_grouped_graph)
             self.graph.show()   
@@ -179,7 +181,7 @@ class Controller:
         
         if self.graph is not None:
             try:
-                df = self.model.filtered_data
+                df = self.data_model.filtered_data
                 if graph == 'Scatter':
                     fig = px.scatter(df, x = x_column , y = y_column)
 
@@ -202,7 +204,7 @@ class Controller:
         
         if self.graph is not None:
             try:
-                df = self.model.group_df(group_column, y_column, agg_func)
+                df = self.data_model.group_df(group_column, y_column, agg_func)
                 fig = px.bar(df, x=group_column, y=y_column,)
                 html_content = fig.to_html(include_plotlyjs='cdn')
                 self.graph.display_graph(html_content)
@@ -212,8 +214,8 @@ class Controller:
                 self.view.update_status(f"Error generating grouped graph: {e}")
     
     def open_map_values_view(self):
-        if self.model.data is not None:
-            columns = self.model.get_columns()
+        if self.data_model.data is not None:
+            columns = self.data_model.get_columns()
             self.map_view = MapValuesView(columns)
             self.map_view.create_column_signal.connect(self.creat_column)
             self.map_view.replace_values_signal.connect(self.replace_values)
@@ -223,10 +225,10 @@ class Controller:
             self.view.update_status("No data loaded")
             
     def creat_column(self,name):
-        if self.model.create_column(name):         
+        if self.data_model.create_column(name):         
             self.view.update_status('column created')
-            self.view.update_table(self.model.data)
-            columns = self.model.get_columns()
+            self.view.update_table(self.data_model.data)
+            columns = self.data_model.get_columns()
             self.map_view.update_columns_cb(columns)
             
     def replace_values(self, column, old_value, new_value):
@@ -235,11 +237,11 @@ class Controller:
             old_value = self.normalize_value_type(column,old_value)
             new_value = self.normalize_value_type(column,new_value)
 
-            reponse_status, error = self.model.replace_values(column, old_value, new_value)
+            reponse_status, error = self.data_model.replace_values(column, old_value, new_value)
             # print(reponse_status)
             if reponse_status:
                 self.view.update_status('value replaced')
-                self.view.update_table(self.model.data)
+                self.view.update_table(self.data_model.data)
             else:
                 self.view.update_status(f"error: {error}")
            
@@ -249,15 +251,15 @@ class Controller:
             condition_value = self.normalize_value_type(condition_column,condition_value)
             new_value = self.normalize_value_type(target_column,new_value)
 
-            reponse_status, error = self.model.update_values_by_condition(condition_column,target_column,operator,condition_value,new_value)
+            reponse_status, error = self.data_model.update_values_by_condition(condition_column,target_column,operator,condition_value,new_value)
             if reponse_status:
                 self.view.update_status('value updated')
-                self.view.update_table(self.model.data)
+                self.view.update_table(self.data_model.data)
             else:
                 self.view.update_status(f"error: {error}")
             
     def normalize_value_type(self, column, value):
-        column_type = self.model.get_dtype(column)
+        column_type = self.data_model.get_dtype(column)
         try:
             if column_type == 'int64':
                 return int(value)
@@ -283,17 +285,17 @@ class Controller:
         self.update_drawer()
     
     def undo_action(self):
-        success, message = self.model.undo()
+        success, message = self.data_model.undo()
         self.view.update_status(message)
         if success:
-            self.update_ui(self.model.data , message)
+            self.update_ui(self.data_model.data , message)
             self.update_drawer()
             
     def save_dataframe(self):
         
         """Abre um QFileDialog para salvar o DataFrame e executa a ação."""
         
-        if self.model.data is None:
+        if self.data_model.data is None:
             self.view.update_status("No DataFrame to save")
             return
 
@@ -309,18 +311,19 @@ class Controller:
                 if selected_filter == "CSV Files (*.csv)":
                     if not file_path.endswith(".csv"):
                         file_path += ".csv"
-                    self.model.data.to_csv(file_path, index=False)
+                    self.data_model.data.to_csv(file_path, index=False)
                 elif selected_filter == "Excel Files (*.xlsx)":
                     if not file_path.endswith(".xlsx"):
                         file_path += ".xlsx"
-                    self.model.data.to_excel(file_path, index=False)
+                    self.data_model.data.to_excel(file_path, index=False)
                 self.view.update_status(f"DataFrame saved to {file_path}")
             except Exception as e:
                 self.view.update_status(f"Error saving DataFrame: {e}")
     
     def open_classification_view(self):
-        if self.model.data is not None:
-            self.classification_view = ClassificationView(self.model.get_columns(), self.view)
+        if self.data_model.data is not None:
+            self.classification_view = ClassificationView(self.data_model.get_columns(), self.view)
+            self.classification_model = ClassificationModel()
             self.classification_view.train_models_signal.connect(self.train_classification_models)
             self.classification_view.predict_signal.connect(self.predict_with_model)
             self.classification_view.save_model_signal.connect(self.save_model)
@@ -329,33 +332,47 @@ class Controller:
             self.classification_view.exec()
         else:
             self.view.update_status("No data loaded")
+        '''
+    # def open_classification_view(self):
+    #     if self.data_model.data is not None:
+    #         self.classification_view = ClassificationView(self.data_model.get_columns(), self.view)
+            
+    #         self.classification_view.train_models_signal.connect(self.train_classification_models)
+    #         self.classification_view.predict_signal.connect(self.predict_with_model)
+    #         self.classification_view.save_model_signal.connect(self.save_model)
+    #         self.classification_view.load_model_signal.connect(self.load_model)
+    #         self.classification_view.finished.connect(self.clear_classification_view)
+    #         self.classification_view.exec()
+    #     else:
+    #         self.view.update_status("No data loaded")
+        '''    
             
     def train_classification_models(self, features, target, model):
         
-        worker = ClassificationWorker(self.model, features, target, model)
-        self.classification_view.show_loading()  
-        worker.finished.connect(lambda success, message, results: self._on_training_finished(success, message, results, worker))
+        self.classification_view.show_loading() 
+        worker = ClassificationWorker(self.classification_model, self.data_model.data, features, target, model)
+        worker.finished.connect(lambda success, message: self._on_training_finished(success, message, worker))
         worker.start()
     
-    def _on_training_finished(self, success, message, results, worker):
-        self.classification_view.hide_loading() 
+    def _on_training_finished(self, success, message, worker):
+        self.classification_view.hide_loading()  
         self.view.update_status(message)
         if success:
-            self.classification_view.update_results(results)
-        worker.deleteLater()
-            
+            # print(self.classification_model.models)
+            self.classification_view.update_results(self.classification_model.models)
+        worker.deleteLater()       
 
     def predict_with_model(self, input_values):
         # Assume que o último modelo treinado será usado, ou adicione um combobox para escolher
-        model_name = list(self.model.models.keys())[0] if self.model.models else None
+        model_name = list(self.data_model.models.keys())[0] if self.data_model.models else None
         if model_name:
-            success, message, prediction = self.model.predict_with_model(model_name, input_values)
+            success, message, prediction = self.data_model.predict_with_model(model_name, input_values)
             self.view.update_status(message)
             if success:
                 self.classification_view.update_prediction(prediction)
 
     def save_model(self):
-        if not self.model.models:
+        if not self.data_model.models:
             self.view.update_status("No models to save")
             return
 
@@ -366,7 +383,7 @@ class Controller:
             if not file_path.endswith(".joblib"):
                 file_path += ".joblib"
             try:
-                joblib.dump(self.model.models, file_path)
+                joblib.dump(self.data_model.models, file_path)
                 self.view.update_status(f"Models saved to {file_path}")
             except Exception as e:
                 self.view.update_status(f"Error saving models: {e}")
@@ -377,12 +394,12 @@ class Controller:
         )
         if file_path:
             try:
-                self.model.models = joblib.load(file_path)
+                self.data_model.models = joblib.load(file_path)
                 self.view.update_status(f"Models loaded from {file_path}")
                 # Atualizar a aba de predição com as colunas do modelo carregado
-                if self.model.models:
-                    first_model = list(self.model.models.keys())[0]
-                    features = self.model.models[first_model]["features"]
+                if self.data_model.models:
+                    first_model = list(self.data_model.models.keys())[0]
+                    features = self.data_model.models[first_model]["features"]
                     self.classification_view.update_prediction_fields(features)
             except Exception as e:
                 self.view.update_status(f"Error loading models: {e}")
