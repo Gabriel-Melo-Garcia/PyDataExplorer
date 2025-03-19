@@ -47,7 +47,6 @@ class ClassificationModel:
     def train_model(self, data, features, target, model_name):
         
         self.data = data
-    
         
         if self.data is None:
             

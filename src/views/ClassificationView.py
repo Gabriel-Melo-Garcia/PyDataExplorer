@@ -152,10 +152,10 @@ class ClassificationView(QDialog):
     def update_results(self, results):
         """Atualiza a aba de resultados com os dados dos modelos."""
         self.results_table.setRowCount(len(results))
-        for row, (model_name, metrics) in enumerate(results.items()):
-            self.results_table.setItem(row, 0, QTableWidgetItem(model_name))
-            self.results_table.setItem(row, 1, QTableWidgetItem(f"{metrics['accuracy']:.4f}"))
-            self.results_table.setItem(row, 2, QTableWidgetItem(f"{metrics['time']:.2f}"))
+        for row, values in enumerate(results):
+            self.results_table.setItem(row, 0, QTableWidgetItem(values))
+            self.results_table.setItem(row, 1, QTableWidgetItem(f"{results[values]['accuracy']:.4f}"))
+            self.results_table.setItem(row, 2, QTableWidgetItem(f"{results[values]['time']:.2f}"))
 
     def make_prediction(self):
         """Emite sinal para fazer uma predição com os valores inseridos."""
@@ -195,14 +195,6 @@ class ClassificationView(QDialog):
 
     def hide_loading(self):
         self.loading_bar.setVisible(False)
-
-    def update_results(self, results):
-        self.hide_loading()
-        self.results_table.setRowCount(len(results))
-        for row, (model_name, metrics) in enumerate(results.items()):
-            self.results_table.setItem(row, 0, QTableWidgetItem(model_name))
-            self.results_table.setItem(row, 1, QTableWidgetItem(f"{metrics['accuracy']:.4f}"))
-            self.results_table.setItem(row, 2, QTableWidgetItem(f"{metrics['time']:.2f}"))
     
     def switch_to_results_tab(self):
         
